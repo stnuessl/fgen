@@ -1,0 +1,7 @@
+[
+    {
+        "file": "main.cpp",
+        "directory": "/home/bockler/Projekte/fgen/test",
+        "command": "g++ -std=c++11 -o test -I/usr/lib/clang/6.0.0/include /home/bockler/Projekte/fgen/test/main.cpp"
+    }
+]
