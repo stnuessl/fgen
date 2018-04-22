@@ -25,10 +25,12 @@
 
 #include <clang/AST/RecursiveASTVisitor.h>
 
+#include <FunctionWriter.hpp>
+
 class FunctionGenerator : public clang::RecursiveASTVisitor<FunctionGenerator> {
 public:
     FunctionGenerator();
-    
+
     std::unordered_set<std::string> &targets();
     const std::unordered_set<std::string> &targets() const;
 
@@ -39,14 +41,6 @@ public:
 private:
     void VisitFunctionDeclImpl(const clang::FunctionDecl *FunctionDecl);
 
-    void writeFunction(const clang::FunctionDecl *FunctionDecl);
-    void writeTemplateParameters(const clang::FunctionDecl *FunctionDecl);
-    void writeTemplateParameters(const clang::TemplateParameterList *List);
-    void writeReturnType(const clang::FunctionDecl *FunctionDecl);
-    void writeQualifiedName(const clang::FunctionDecl *FunctionDecl);
-    void writeParameters(const clang::FunctionDecl *FunctionDecl);
-    void writeBody(const clang::FunctionDecl *FunctionDecl);
-
     bool isTarget(const clang::FunctionDecl *Decl);
 
     /*
@@ -54,19 +48,13 @@ private:
      * new allocations and reuse already allocated memory.
      */
     struct {
-        std::vector<const clang::DeclContext *> DeclContextVec;
-        std::string QualifiedName;
+        std::string Name;
     } Buffer_;
 
     std::unordered_set<std::string> Targets_;
     std::unordered_set<std::string> VisitedDecls_;
 
-    clang::LangOptions LangOptions_;
-    clang::PrintingPolicy PrintingPolicy_;
-
     std::string Output_;
-    
-    bool IgnoreNamespaces_;
 };
 
 #endif /* FGEN_FUNCTION_GENERATOR_HPP_ */

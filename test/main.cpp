@@ -21,8 +21,8 @@
 #include <memory>
 #include <cstddef>
 
-template <typename T, typename... Args>
-std::unique_ptr<T> make_unique(Args &&... args);
+// template <typename T, typename... Args>
+// std::unique_ptr<T> make_unique(Args &&... args);
 
 namespace ns {
 

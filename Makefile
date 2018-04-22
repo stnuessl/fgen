@@ -125,7 +125,7 @@ DEFS		:= \
 # Add additional include paths
 #
 INCLUDE		:= \
-# 		-I./							\
+		-I./src
 
 #
 # Add used libraries which are configurable with pkg-config

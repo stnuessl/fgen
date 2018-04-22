@@ -28,8 +28,11 @@
 
 #include "clang/Tooling/CommonOptionsParser.h"
 #include <llvm/Support/CommandLine.h>
+#include <llvm/Support/FileSystem.h>
+#include <llvm/Support/raw_ostream.h>
 
-#include "FunctionGenerator.hpp"
+#include <FunctionGenerator.hpp>
+#include <util/CompilationDatabase.hpp>
 
 /* clang-format off */
 
@@ -46,9 +49,19 @@ static llvm::cl::list<std::string> TargetVec(
     llvm::cl::cat(FGenOptions)
 );
 
+static llvm::cl::opt<std::string> DatabasePath(
+    "compilation-database",
+    llvm::cl::desc(
+        "Specify the compilation database <file>.\n"
+        "Usually this <file> is named \"compile_commands.json\".\n"
+        "If not specified fgen will automatically search all\n"
+        "parent directories for such a file."
+    ),
+    llvm::cl::value_desc("file"),
+    llvm::cl::cat(FGenOptions)
+);
+
 /* clang-format on */
-
-
 
 class MethodGeneratorAction : public clang::ASTFrontendAction {
 public:
@@ -66,7 +79,7 @@ MethodGeneratorAction::CreateASTConsumer(clang::CompilerInstance &CI,
         virtual void HandleTranslationUnit(clang::ASTContext &Context) override
         {
             auto MGen = FunctionGenerator();
-            
+
             auto Begin = std::make_move_iterator(TargetVec.begin());
             auto End = std::make_move_iterator(TargetVec.end());
             MGen.targets().insert(Begin, End);
@@ -79,13 +92,54 @@ MethodGeneratorAction::CreateASTConsumer(clang::CompilerInstance &CI,
     return llvm::make_unique<ASTConsumer>();
 }
 
-int main(int argc, const char **argv)
+int main(int argc, const char *argv[])
 {
     using namespace clang::tooling;
 
+    std::unique_ptr<clang::tooling::CompilationDatabase> Database;
+    std::string ErrMsg;
+    llvm::SmallString<128> Buffer;
+
+    /* Get th current working directory */
+    llvm::sys::fs::current_path(Buffer);
+    auto CurrentPath = Buffer.str();
+
     CommonOptionsParser Parser(argc, argv, FGenOptions);
 
-    ClangTool Tool(Parser.getCompilations(), Parser.getSourcePathList());
+    auto &Files = Parser.getSourcePathList();
+
+    /*
+     * Find a hopefully working compilation database (compile_commands.json).
+     */
+    if (!DatabasePath.empty()) {
+        Database = util::compilation_database::load(DatabasePath, ErrMsg);
+
+        if (!Database) {
+            llvm::errs() << "** Error: fgen: failed to load provided "
+                         << "compilation database \"" << DatabasePath << "\" - "
+                         << ErrMsg << "\n";
+            std::exit(EXIT_FAILURE);
+        }
+    } else {
+        Database = util::compilation_database::detect(CurrentPath, ErrMsg);
+
+        if (!Database && !ErrMsg.empty()) {
+            llvm::errs() << "** ERROR: fgen: failed to load detected "
+                         << "compilation database - " << ErrMsg << "\n";
+            std::exit(EXIT_FAILURE);
+        }
+    }
+
+    /*
+     * What good is a compilation database if it does not contain a command
+     * for parsing the user requested source files?
+     * However, this is just a very basic fallback database, which will not
+     * work for any translation unit with non default include paths.
+     */
+    if (!Database || !util::compilation_database::contains(*Database, Files))
+        Database = util::compilation_database::make(CurrentPath, Files, ErrMsg);
+
+    ClangTool Tool(*Database, Files);
 
     return Tool.run(newFrontendActionFactory<MethodGeneratorAction>().get());
 }
