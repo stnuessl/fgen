@@ -18,11 +18,110 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <cctype>
+
+#include <llvm/ADT/StringExtras.h>
+
 #include <FunctionWriter.hpp>
 #include <util/Decl.hpp>
 
+llvm::StringRef lastSection(llvm::StringRef S)
+{
+    S = S.rtrim('_');
+    
+    auto Index = S.rfind('_');
+    if (Index != llvm::StringRef::npos)
+        return S.substr(Index + 1);
+    
+    if (S.empty())
+        return S;
+
+    auto Begin = S.begin();
+    auto End = S.end();
+    auto LastUpper = End;
+    auto It = End - 1;
+    
+    while (It >= Begin) {
+        /* 
+         * If we find an upper character we know that
+         * on the next non-upper character we found the
+         * relevant last section of the string.
+         */
+        if (std::isupper(*It))
+            LastUpper = It;
+        else if (LastUpper != End)
+            return llvm::StringRef(LastUpper, End - LastUpper);
+        
+        --It;
+    }
+    
+    return S;
+}
+
+// static unsigned int getLCSLength(llvm::StringRef S1, llvm::StringRef S2)
+// {
+//     unsigned int Max = 0;
+//     
+//     if (S1.size() < S2.size())
+//         std::swap(S1, S2);
+//     
+//     for (size_t i = 0; i <  S1.size() && Max < S2.size() ; ++i) {
+//         unsigned int Value = 0;
+//         
+//         for (size_t j = 0; i + j < S1.size() && j < S2.size() ; ++j)
+//             Value += (llvm::toLower(S1[i + j]) == llvm::toLower(S2[j]));
+// 
+//         Max = std::max(Max, Value);
+//     }
+//     
+//     return Max;
+// }
+
+static const clang::FieldDecl *
+bestFieldDeclMatch(const clang::RecordDecl *RecordDecl, 
+                   clang::QualType Type,
+                   llvm::StringRef Name)
+{
+    if (RecordDecl->field_empty())
+        return nullptr;
+
+    auto MaxEditDistance = Name.size();
+    
+    Name = lastSection(Name);
+    auto NameSize = static_cast<int>(Name.size());
+    
+    const clang::FieldDecl *BestMatch = nullptr;
+    unsigned int BestEditDistance = MaxEditDistance;
+    
+    for (const auto &Field : RecordDecl->fields()) {
+        if (Type != Field->getType())
+            continue;
+        
+        auto FieldName = lastSection(Field->getName());
+        auto FieldNameSize = static_cast<int>(FieldName.size());
+
+        /* 
+         * The "edit_distance" function below is O(m*n) where
+         * m and n are the respective string sizes. We try to shortcut it
+         * for names that cannot possibly be have a smaller edit distance
+         * with this simple comparison.
+         */
+        if (std::abs(NameSize - FieldNameSize) > BestEditDistance)
+            continue;
+        
+        auto Distance = Name.edit_distance(FieldName, true, BestEditDistance);
+        
+        if (Distance < BestEditDistance) {
+            BestMatch = Field;
+            BestEditDistance = Distance;
+        }
+    }
+    
+    return BestMatch;
+}
+
 FunctionWriter::FunctionWriter(std::string &Buffer)
-    : OStream_(Buffer), IgnoreNamespaces_(true)
+    : OStream_(Buffer), IgnoreNamespaces_(true), ImplementAccessors_(true)
 {
     OStream_.SetUnbuffered();
 }
@@ -206,33 +305,11 @@ void FunctionWriter::writeParameters(const clang::FunctionDecl *FunctionDecl)
 
     for (auto It = Begin; It != End; ++It) {
         auto QualType = (*It)->getType();
-        //         auto TypeName = QualType.getAsString(PrintingPolicy);
-
-#if 0
-        /* This also deletes qualifiers like 'const' */
-        auto Index = TypeName.rfind("::");
-        if (Index != std::string::npos) {
-            /*
-             * Given a type string like:
-             *      std::vector::size_type
-             * Reduce it to just:
-             *      size_type
-             *
-             * The fully qualified function name makes sure that the compiler
-             * will be able to resolve the correct type.
-             */
-            auto Begin = TypeName.begin();
-            auto End = std::next(Begin, Index + std::strlen("::"));
-            
-            TypeName.erase(Begin, End);
-        }
-#endif
 
         if (It != Begin)
             OStream_ << ", ";
 
         QualType.print(OStream_, PrintingPolicy);
-        //         OStream_ << TypeName;
 
         /*
          * Output for reference and pointer types:
@@ -266,5 +343,181 @@ void FunctionWriter::writeQualifiers(const clang::FunctionDecl *FunctionDecl)
 
 void FunctionWriter::writeBody(const clang::FunctionDecl *FunctionDecl)
 {
+    if (ImplementAccessors_) {
+        if (tryWriteGetAccessor(FunctionDecl))
+            return;
+        
+        if (tryWriteSetAccessor(FunctionDecl))
+            return;
+    }
+    
     OStream_ << "{\n\n}\n\n";
+}
+
+bool FunctionWriter::tryWriteGetAccessor(const clang::FunctionDecl *FunctionDecl)
+{
+    if (FunctionDecl->getReturnType()->isVoidType())
+        return false;
+    
+    auto MethodDecl = clang::dyn_cast<clang::CXXMethodDecl>(FunctionDecl);
+    if (MethodDecl)
+        return tryWriteCXXGetAccessor(MethodDecl);
+    
+    return tryWriteCGetAccessor(FunctionDecl);
+}
+
+
+bool FunctionWriter::tryWriteCGetAccessor(const clang::FunctionDecl *FunctionDecl)
+{
+    auto Parameters = FunctionDecl->parameters();
+    
+    if (Parameters.size() != 1)
+        return false;
+    
+    auto Parameter = Parameters[0];
+    auto Type = Parameter->getType();
+    
+    if (!Type->isPointerType())
+        return false;
+    
+    auto RecordDecl = Type->getPointeeCXXRecordDecl();
+    if (!RecordDecl)
+        return false;
+    
+    auto ReturnType = FunctionDecl->getReturnType();
+    auto Name = FunctionDecl->getName();
+    
+    auto FieldDecl = bestFieldDeclMatch(RecordDecl, ReturnType, Name);
+    if (!FieldDecl)
+        return false;
+    
+    auto ParameterName = Parameter->getName();
+    
+    OStream_ << "{\n    return ";
+    
+    if (ParameterName.empty())
+        OStream_ << "arg1";
+    else
+        OStream_ << ParameterName;
+    
+    OStream_ << "->" << FieldDecl->getName() << ";\n}\n\n";
+    
+    return true;
+}
+
+bool FunctionWriter::tryWriteCXXGetAccessor(const clang::CXXMethodDecl *MethodDecl)
+{
+    if (!MethodDecl->isConst())
+        return false;
+    
+    if (!MethodDecl->parameters().empty())
+        return false;
+    
+    auto RecordDecl = MethodDecl->getParent();
+    
+    auto ReturnType = MethodDecl->getReturnType();
+    auto Name = MethodDecl->getName();
+    
+    auto FieldDecl = bestFieldDeclMatch(RecordDecl, ReturnType, Name);
+    if (!FieldDecl)
+        return false;
+    
+    OStream_ << "{\n    return " << FieldDecl->getName() << ";\n}\n\n";
+    
+    return true;
+}
+
+
+bool FunctionWriter::tryWriteCSetAccessor(const clang::FunctionDecl *FunctionDecl)
+{
+    auto Parameters = FunctionDecl->parameters();
+    
+    if (Parameters.size() != 2)
+        return false;
+    
+    auto Parameter1 = Parameters[0];
+    auto Parameter2 = Parameters[1];
+        
+    auto Parameter1Type = Parameter1->getType();
+    
+    auto PointerType = clang::dyn_cast<clang::PointerType>(Parameter1Type);
+    if (!PointerType || PointerType->getPointeeType().isConstQualified())
+        return false;
+
+    auto RecordDecl = Parameter1Type->getPointeeCXXRecordDecl();
+    if (!RecordDecl)
+        return false;
+    
+    auto Parameter2Type = Parameter2->getType();
+    auto Name = FunctionDecl->getName();
+    
+    auto FieldDecl = bestFieldDeclMatch(RecordDecl, Parameter2Type, Name);
+    if (!FieldDecl)
+        return false;
+    
+    int ArgCount = 0;
+    auto Name1 = Parameter1->getName();
+    auto Name2 = Parameter2->getName();
+    
+    OStream_ << "{\n    ";
+    
+    if (Name1.empty())
+        OStream_ << "arg" << std::to_string(++ArgCount);
+    else
+        OStream_ << Name1;
+    
+    OStream_ << "->" << FieldDecl->getName() << " = ";
+
+    if (Name2.empty())
+        OStream_ << "arg" << std::to_string(++ArgCount);
+    else
+        OStream_ << Name2;
+
+    OStream_ << ";\n}\n\n";
+    
+    return true;
+}
+
+bool FunctionWriter::tryWriteCXXSetAccessor(const clang::CXXMethodDecl *MethodDecl)
+{
+    if (MethodDecl->isConst())
+        return false;
+    
+    auto Parameters = MethodDecl->parameters();
+    
+    if (Parameters.size() != 1)
+        return false;
+    
+    auto RecordDecl = MethodDecl->getParent();
+    
+    auto Type = Parameters[0]->getType();
+    auto Name = MethodDecl->getName();
+    
+    auto FieldDecl = bestFieldDeclMatch(RecordDecl, Type, Name);
+    if (!FieldDecl)
+        return false;
+    
+    OStream_ << "{\n    " << FieldDecl->getName() << " = ";
+    
+    auto ArgName = Parameters[0]->getName();
+    if (ArgName.empty())
+        OStream_ << "arg1";
+    else
+        OStream_ << ArgName;
+    
+    OStream_ << ";\n}\n\n";
+    
+    return true;
+}
+
+bool FunctionWriter::tryWriteSetAccessor(const clang::FunctionDecl *FunctionDecl)
+{
+    if (!FunctionDecl->getReturnType()->isVoidType())
+        return false;
+    
+    auto MethodDecl = clang::dyn_cast<clang::CXXMethodDecl>(FunctionDecl);
+    if (MethodDecl)
+        return tryWriteCXXSetAccessor(MethodDecl);
+    
+    return tryWriteCSetAccessor(FunctionDecl);
 }

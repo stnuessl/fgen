@@ -20,10 +20,6 @@
 
 // #include <clang/Frontend/TextDiagnosticPrinter.h>
 #include <clang/Frontend/FrontendActions.h>
-// #include <clang/Rewrite/Core/Rewriter.h>
-// #include <clang/Tooling/Refactoring.h>
-// #include <clang/Tooling/CompilationDatabase.h>
-#include <clang/Tooling/JSONCompilationDatabase.h>
 #include <clang/Tooling/Tooling.h>
 
 #include "clang/Tooling/CommonOptionsParser.h"
@@ -31,8 +27,9 @@
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/raw_ostream.h>
 
+#include <FGenCompilationDatabase.hpp>
 #include <FunctionGenerator.hpp>
-#include <util/CompilationDatabase.hpp>
+#include <util/CommandLine.hpp>
 
 /* clang-format off */
 
@@ -94,52 +91,43 @@ MethodGeneratorAction::CreateASTConsumer(clang::CompilerInstance &CI,
 
 int main(int argc, const char *argv[])
 {
-    using namespace clang::tooling;
-
     std::unique_ptr<clang::tooling::CompilationDatabase> Database;
     std::string ErrMsg;
-    llvm::SmallString<128> Buffer;
 
-    /* Get th current working directory */
-    llvm::sys::fs::current_path(Buffer);
-    auto CurrentPath = Buffer.str();
+    clang::tooling::CommonOptionsParser Parser(argc, argv, FGenOptions);
 
-    CommonOptionsParser Parser(argc, argv, FGenOptions);
-
-    auto &Files = Parser.getSourcePathList();
-
-    /*
-     * Find a hopefully working compilation database (compile_commands.json).
-     */
+    auto Files = Parser.getSourcePathList();
+    if (Files.empty()) {
+        util::cl::error() << "fgen: no source files specified - done.";
+        std::exit(EXIT_FAILURE);
+    }
+    
     if (!DatabasePath.empty()) {
-        Database = util::compilation_database::load(DatabasePath, ErrMsg);
+        Database = FGenCompilationDatabase::loadFromFile(DatabasePath, ErrMsg);
 
-        if (!Database) {
-            llvm::errs() << "** Error: fgen: failed to load provided "
-                         << "compilation database \"" << DatabasePath << "\" - "
-                         << ErrMsg << "\n";
-            std::exit(EXIT_FAILURE);
-        }
-    } else {
-        Database = util::compilation_database::detect(CurrentPath, ErrMsg);
-
-        if (!Database && !ErrMsg.empty()) {
-            llvm::errs() << "** ERROR: fgen: failed to load detected "
-                         << "compilation database - " << ErrMsg << "\n";
+        if (!ErrMsg.empty()) {
+            util::cl::error() << "fgen: failed to load provided compilation "
+                              << "database \"" << DatabasePath << "\":\n    "
+                              << ErrMsg << "\n";
             std::exit(EXIT_FAILURE);
         }
     }
 
-    /*
-     * What good is a compilation database if it does not contain a command
-     * for parsing the user requested source files?
-     * However, this is just a very basic fallback database, which will not
-     * work for any translation unit with non default include paths.
-     */
-    if (!Database || !util::compilation_database::contains(*Database, Files))
-        Database = util::compilation_database::make(CurrentPath, Files, ErrMsg);
+    if (!Database) {
+        llvm::StringRef File = Files[0];
 
-    ClangTool Tool(*Database, Files);
+        Database = FGenCompilationDatabase::autoDetectFromSource(File, ErrMsg);
 
-    return Tool.run(newFrontendActionFactory<MethodGeneratorAction>().get());
+        if (!Database || !ErrMsg.empty()) {
+            util::cl::error() << "fgen: failed to load compilation database:\n"
+                              << "    " << ErrMsg << "\n";
+            std::exit(EXIT_FAILURE);
+        }
+    }
+
+    clang::tooling::ClangTool Tool(*Database, Files);
+
+    auto Factory =
+        clang::tooling::newFrontendActionFactory<MethodGeneratorAction>();
+    return Tool.run(Factory.get());
 }

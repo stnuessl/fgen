@@ -257,9 +257,34 @@ debug: CFLAGS		+= -Og -g2
 debug: CXXFLAGS 	+= -Og -g2
 debug: $(TARGET)
 
+SANITIZERS	:= \
+		with-addr-sanitizer 				\
+		with-mem-sanitizer 				\
+		with-thread-sanitizer				\
+		with-ub-sanitizer
+
+$(SANITIZERS): CXXFLAGS 	+= -O1 -g2 -fno-omit-frame-pointer
+
+with-addr-sanitizer: CXXFLAGS 	+= -fsanitize=address
+with-addr-sanitizer: LDFLAGS  	+= -fsanitize=address
+
+# This option is only available on clang -- (clang 3.9.1 / gcc 6.3.1)
+with-mem-sanitizer: CXX		:= /usr/bin/clang++
+with-mem-sanitizer: CXXFLAGS 	+= -fsanitize=memory
+with-mem-sanitizer: LDFLAGS  	+= -fsanitize=memory
+
+with-thread-sanitizer: CXXFLAGS += -fsanitize=thread
+with-thread-sanitizer: LDFLAGS	+= -fsanitize=thread
+
+with-ub-sanitizer: CXXFLAGS	+= -fsanitize=undefined
+with-ub-sanitizer: LDFLAGS 	+= -fsanitize=undefined
+
+$(SANITIZERS): $(TARGET) 
+
 syntax-check: CFLAGS 	+= -fsyntax-only
 syntax-check: CXXFLAGS 	+= -fsyntax-only
 syntax-check: $(OBJS)
+
 
 all: $(TARGET)
 

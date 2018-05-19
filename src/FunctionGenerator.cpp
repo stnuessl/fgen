@@ -28,6 +28,13 @@
 
 #include <util/Decl.hpp>
 
+static bool isUserProvided(const clang::FunctionDecl *FunctionDecl)
+{
+    auto MethodDecl = clang::dyn_cast<clang::CXXMethodDecl>(FunctionDecl);
+
+    return !MethodDecl || MethodDecl->isUserProvided();
+}
+
 FunctionGenerator::FunctionGenerator()
     : Buffer_(), Targets_(), VisitedDecls_(), Output_()
 {
@@ -71,6 +78,9 @@ void FunctionGenerator::VisitFunctionDeclImpl(
     if (!SM.isInMainFile(FunctionDecl->getLocation()))
         return;
 
+    if (!isUserProvided(FunctionDecl))
+        return;
+
     if (!isTarget(FunctionDecl))
         return;
 
@@ -105,8 +115,10 @@ bool FunctionGenerator::isTarget(const clang::FunctionDecl *Decl)
 
     Buffer_.Name.clear();
 
-    llvm::raw_string_ostream StringStream(Buffer_.Name);
-    MethodDecl->getParent()->printQualifiedName(StringStream);
+    llvm::raw_string_ostream OS(Buffer_.Name);
+    OS.SetUnbuffered();
+
+    MethodDecl->getParent()->printQualifiedName(OS);
 
     return !!Targets_.count(Buffer_.Name);
 }

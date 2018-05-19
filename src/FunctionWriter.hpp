@@ -49,9 +49,18 @@ private:
     void writeParameters(const clang::FunctionDecl *FunctionDecl);
     void writeQualifiers(const clang::FunctionDecl *FunctionDecl);
     void writeBody(const clang::FunctionDecl *FunctionDecl);
+    
+    bool tryWriteGetAccessor(const clang::FunctionDecl *FunctionDecl);
+    bool tryWriteCGetAccessor(const clang::FunctionDecl *FunctionDecl);
+    bool tryWriteCXXGetAccessor(const clang::CXXMethodDecl *MethodDecl);
+    
+    bool tryWriteSetAccessor(const clang::FunctionDecl *FunctionDecl);
+    bool tryWriteCSetAccessor(const clang::FunctionDecl *FunctionDecl);
+    bool tryWriteCXXSetAccessor(const clang::CXXMethodDecl *MethodDecl);
 
     llvm::raw_string_ostream OStream_;
     bool IgnoreNamespaces_;
+    bool ImplementAccessors_;
 };
 
 #endif /* FGEN_FUNCTION_WRITER_HPP_ */
