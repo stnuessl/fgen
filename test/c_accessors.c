@@ -43,20 +43,48 @@ long s2_get_b(const struct s2 *);
 long s2_get_c(const struct s2 *self);
 
 struct S3 {
-    unsigned int A, B;
     double AA, AB, BB; 
 };
-
-void S3SetA(struct S3 *S3, unsigned int value);
-void S3SetB(struct S3 *S3, unsigned int value);
 
 void S3setAA(struct S3 *S3, double value);
 void S3setAB(struct S3 *S3, double value);
 void S3setBB(struct S3 *S3, double value);
 
-unsigned int s3GetA(const struct S3 *S3);
-unsigned int s3B(const struct S3 *);
-
 double S3GetAA(const struct S3 *S3);
-double S3AB(const struct S3 *S3);
-double S3BB(const struct S3 *);
+double S3GetAB(const struct S3 *S3);
+double S3GetBB(const struct S3 *S3);
+
+struct S4 {
+    int A_, B_;
+};
+
+int s4GetA(const struct S4 *S4);
+int s4GetB(const struct S4 *);
+
+void s4SetA(struct S4 *S4, int value);
+void s4SetB(struct S4 *, int);
+
+struct s5 {
+    int abc, bac, bca, acb, cab, cba;
+};
+
+typedef s5 s5;
+
+int s5_abc(const struct s5 *);
+int s5_bac(const struct s5 *);
+int s5_bca(const struct s5 *);
+int s5_acb(const s5 *);
+int s5_cab(const s5 *);
+int s5_cba(const s5 *);
+
+void s5_set_abc(struct s5 *s5, int value);
+void s5_set_bac(struct s5 *, int value);
+void s5_set_bca(struct s5 *s5, int);
+void s5_set_acb(s5 *s5, int value);
+void s5_set_cab(s5 *, int value);
+void s5_set_cba(s5 *s5, int);
+
+struct s6 {
+    int A_, B_;
+};
+

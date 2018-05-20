@@ -80,35 +80,18 @@ private:
     double VarVar1, VarVar2, VarVar3; 
 };
 
+
+template <typename T>
 class c5 {
 public:
-    /* All these functions should have empty bodys */
-    double a() const;
-    long b() const;
-    int c();
+    void set_a(T value);
+    void set_b(T value);
+    void set_c(T value);
     
-    double get_a() const;
-    long get_b() const;
-    int get_c();
-    
-    int set_a();
-    void set_a(double val);
-    void set_a(long val);
-    void set_a(int val) const;
-    
+    T a() const;
+    T b() const;
+    T c() const;
 private:
-    int a_, b_, c_;
+    T a_, b_, c_;
 };
 
-class c6 {
-public:
-    const c1 *c() const;
-    const int &cc() const;
-    
-    void set_c(c1 *c);
-    void set_cc(int &c);
-    
-private:
-    c1 *c_;
-    int &cc_;
-};

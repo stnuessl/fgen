@@ -101,7 +101,7 @@ int main(int argc, const char *argv[])
         util::cl::error() << "fgen: no source files specified - done.";
         std::exit(EXIT_FAILURE);
     }
-    
+
     if (!DatabasePath.empty()) {
         Database = FGenCompilationDatabase::loadFromFile(DatabasePath, ErrMsg);
 

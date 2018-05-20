@@ -45,15 +45,17 @@ private:
     void writeTemplateParameters(const clang::FunctionDecl *FunctionDecl);
     void writeTemplateParameters(const clang::TemplateParameterList *List);
     void writeReturnType(const clang::FunctionDecl *FunctionDecl);
-    void writeFullName(const clang::FunctionDecl *const FunctionDecl);
+    void writeFullName(const clang::FunctionDecl *FunctionDecl);
     void writeParameters(const clang::FunctionDecl *FunctionDecl);
+    void writeParameterName(const clang::ParmVarDecl *Parameter, 
+                            std::size_t Index);
     void writeQualifiers(const clang::FunctionDecl *FunctionDecl);
     void writeBody(const clang::FunctionDecl *FunctionDecl);
     
     bool tryWriteGetAccessor(const clang::FunctionDecl *FunctionDecl);
     bool tryWriteCGetAccessor(const clang::FunctionDecl *FunctionDecl);
     bool tryWriteCXXGetAccessor(const clang::CXXMethodDecl *MethodDecl);
-    
+
     bool tryWriteSetAccessor(const clang::FunctionDecl *FunctionDecl);
     bool tryWriteCSetAccessor(const clang::FunctionDecl *FunctionDecl);
     bool tryWriteCXXSetAccessor(const clang::CXXMethodDecl *MethodDecl);
