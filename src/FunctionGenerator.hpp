@@ -18,43 +18,49 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef FGEN_FUNCTION_GENERATOR_HPP_
-#define FGEN_FUNCTION_GENERATOR_HPP_
+#ifndef FGEN_FUNCTIONGENERATOR_HPP_
+#define FGEN_FUNCTIONGENERATOR_HPP_
 
-#include <unordered_set>
+#include <clang/AST/Decl.h>
+#include <clang/AST/DeclCXX.h>
+#include <clang/AST/DeclTemplate.h>
+#include <llvm/Support/raw_ostream.h>
 
-#include <clang/AST/RecursiveASTVisitor.h>
+/*
+ * Simple one pass class, which gets used for every valid
+ * function declaration. Basically wraps a 'std::string' in
+ * a 'llvm::raw_string_ostream' to make use of the handy
+ * 'operator<<()' overloads.
+ */
 
-#include <FunctionWriter.hpp>
-
-class FunctionGenerator : public clang::RecursiveASTVisitor<FunctionGenerator> {
+class FunctionGenerator {
 public:
-    FunctionGenerator();
+    FunctionGenerator(std::string &Buffer);
 
-    std::unordered_set<std::string> &targets();
-    const std::unordered_set<std::string> &targets() const;
-
-    bool VisitFunctionDecl(clang::FunctionDecl *FunctionDecl);
-
-    void dump(llvm::raw_ostream &OStream = llvm::outs()) const;
+    void write(const clang::FunctionDecl *FunctionDecl);
 
 private:
-    void VisitFunctionDeclImpl(const clang::FunctionDecl *FunctionDecl);
+    void writeTemplateParameters(const clang::FunctionDecl *FunctionDecl);
+    void writeTemplateParameters(const clang::TemplateParameterList *List);
+    void writeReturnType(const clang::FunctionDecl *FunctionDecl);
+    void writeFullName(const clang::FunctionDecl *FunctionDecl);
+    void writeParameters(const clang::FunctionDecl *FunctionDecl);
+    void writeParameterName(const clang::ParmVarDecl *Parameter,
+                            std::size_t Index);
+    void writeQualifiers(const clang::FunctionDecl *FunctionDecl);
+    void writeBody(const clang::FunctionDecl *FunctionDecl);
 
-    bool isTarget(const clang::FunctionDecl *Decl);
+    bool tryWriteGetAccessor(const clang::FunctionDecl *FunctionDecl);
+    bool tryWriteCGetAccessor(const clang::FunctionDecl *FunctionDecl);
+    bool tryWriteCXXGetAccessor(const clang::CXXMethodDecl *MethodDecl);
 
-    /*
-     * A structure which holds elements which help to minimize
-     * new allocations and reuse already allocated memory.
-     */
-    struct {
-        std::string Name;
-    } Buffer_;
+    bool tryWriteSetAccessor(const clang::FunctionDecl *FunctionDecl);
+    bool tryWriteCSetAccessor(const clang::FunctionDecl *FunctionDecl);
+    bool tryWriteCXXSetAccessor(const clang::CXXMethodDecl *MethodDecl);
 
-    std::unordered_set<std::string> Targets_;
-    std::unordered_set<std::string> VisitedDecls_;
-
-    std::string Output_;
+    llvm::raw_string_ostream OStream_;
+    bool IgnoreNamespaces_;
+    bool ImplementAccessors_;
 };
 
-#endif /* FGEN_FUNCTION_GENERATOR_HPP_ */
+#endif /* FGEN_FUNCTIONGENERATOR_HPP_ */

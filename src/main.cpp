@@ -18,17 +18,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-// #include <clang/Frontend/TextDiagnosticPrinter.h>
 #include <clang/Frontend/FrontendActions.h>
+#include <clang/Tooling/CommonOptionsParser.h>
 #include <clang/Tooling/Tooling.h>
-
-#include "clang/Tooling/CommonOptionsParser.h"
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/raw_ostream.h>
 
 #include <FGenCompilationDatabase.hpp>
-#include <FunctionGenerator.hpp>
+#include <FGenVisitor.hpp>
 #include <util/CommandLine.hpp>
 
 /* clang-format off */
@@ -75,7 +73,7 @@ MethodGeneratorAction::CreateASTConsumer(clang::CompilerInstance &CI,
     public:
         virtual void HandleTranslationUnit(clang::ASTContext &Context) override
         {
-            auto MGen = FunctionGenerator();
+            auto MGen = FGenVisitor();
 
             auto Begin = std::make_move_iterator(TargetVec.begin());
             auto End = std::make_move_iterator(TargetVec.end());
