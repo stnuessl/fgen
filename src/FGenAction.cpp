@@ -19,3 +19,68 @@
  */
 
 #include <FGenAction.hpp>
+#include <FGenVisitor.hpp>
+
+class FGenASTConsumer : public clang::ASTConsumer {
+public:
+    FGenASTConsumer() = default;
+
+    void setTargets(std::shared_ptr<std::unordered_set<std::string>> Targets);
+
+    virtual void HandleTranslationUnit(clang::ASTContext &Context) override;
+
+private:
+    std::shared_ptr<std::unordered_set<std::string>> Targets_;
+};
+
+void FGenASTConsumer::setTargets(
+    std::shared_ptr<std::unordered_set<std::string>> Targets)
+{
+    Targets_ = std::move(Targets);
+}
+
+void FGenASTConsumer::HandleTranslationUnit(clang::ASTContext &Context)
+{
+    auto Visitor = FGenVisitor();
+    Visitor.setTargets(Targets_);
+
+    Visitor.TraverseDecl(Context.getTranslationUnitDecl());
+    Visitor.dump();
+}
+
+void FGenAction::setTargets(
+    std::shared_ptr<std::unordered_set<std::string>> Targets)
+{
+    Targets_ = std::move(Targets);
+}
+
+std::unique_ptr<clang::ASTConsumer>
+FGenAction::CreateASTConsumer(clang::CompilerInstance &CI, llvm::StringRef File)
+{
+    auto Consumer = llvm::make_unique<FGenASTConsumer>();
+    Consumer->setTargets(Targets_);
+
+    return Consumer;
+}
+
+FGenActionFactory::FGenActionFactory()
+    : Targets_(std::make_shared<std::unordered_set<std::string>>())
+{}
+
+std::unordered_set<std::string> &FGenActionFactory::targets()
+{
+    return *Targets_;
+}
+
+const std::unordered_set<std::string> &FGenActionFactory::targets() const
+{
+    return *Targets_;
+}
+
+clang::FrontendAction *FGenActionFactory::create()
+{
+    auto Action = new FGenAction();
+    Action->setTargets(Targets_);
+
+    return Action;
+}

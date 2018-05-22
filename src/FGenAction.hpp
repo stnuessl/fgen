@@ -21,4 +21,36 @@
 #ifndef FGEN_FGENACTION_HPP_
 #define FGEN_FGENACTION_HPP_
 
+#include <unordered_set>
+
+#include <clang/Frontend/FrontendAction.h>
+#include <clang/Tooling/Tooling.h>
+
+class FGenAction : public clang::ASTFrontendAction {
+public:
+    FGenAction() = default;
+
+    void setTargets(std::shared_ptr<std::unordered_set<std::string>> Targets);
+
+    virtual std::unique_ptr<clang::ASTConsumer>
+    CreateASTConsumer(clang::CompilerInstance &CI,
+                      llvm::StringRef File) override;
+
+private:
+    std::shared_ptr<std::unordered_set<std::string>> Targets_;
+};
+
+class FGenActionFactory : public clang::tooling::FrontendActionFactory {
+public:
+    FGenActionFactory();
+
+    std::unordered_set<std::string> &targets();
+    const std::unordered_set<std::string> &targets() const;
+
+    virtual clang::FrontendAction *create() override;
+
+private:
+    std::shared_ptr<std::unordered_set<std::string>> Targets_;
+};
+
 #endif /* FGEN_FGENACTION_HPP_ */

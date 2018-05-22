@@ -30,8 +30,7 @@ class FGenVisitor : public clang::RecursiveASTVisitor<FGenVisitor> {
 public:
     FGenVisitor();
 
-    std::unordered_set<std::string> &targets();
-    const std::unordered_set<std::string> &targets() const;
+    void setTargets(std::shared_ptr<std::unordered_set<std::string>> Targets);
 
     bool VisitFunctionDecl(clang::FunctionDecl *FunctionDecl);
 
@@ -42,7 +41,7 @@ private:
 
     bool isTarget(const clang::FunctionDecl *Decl);
 
-    std::unordered_set<std::string> Targets_;
+    std::shared_ptr<std::unordered_set<std::string>> Targets_;
     std::unordered_set<std::string> VisitedDecls_;
 
     std::string QualifiedNameBuffer_;
