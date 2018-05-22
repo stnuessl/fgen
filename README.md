@@ -16,12 +16,22 @@
 
 This section describes a possible installation process for __fgen__. 
 
+### Toolchain
+
+For downloading, compiling and installing __fgen__ you will need
+
+* g++ / clang++ (supporting at least C++11)
+* make
+* git
+
+Make sure these programs are installed on your system.
+
 ### Dependencies
 
 __fgen__ has the following dependencies:
 
-* [llvm](http://llvm.org/) ,
-* [clang](http://clang.llvm.org/) .
+* [llvm](http://llvm.org/)
+* [clang](http://clang.llvm.org/)
 
 Sometimes it is hard to get the correct versions, as _llvm_ and _clang_
 like to change their APIs and thus breaking the compilation process of this
@@ -31,13 +41,6 @@ the official _Arch Linux_ package repository
 [clang](https://www.archlinux.org/packages/extra/x86_64/clang/)).
 If I release a new version of __fgen__, there will be seperate information
 about the required versions.
-
-For downloading, compiling and installing __fgen__ you will need the following
-programs:
-
-* g++ / clang++ (supporting at least C++11),
-* make,
-* git .
 
 #### Arch Linux
 
@@ -71,8 +74,11 @@ system:
     $ make install
 ```
 
-
 ## Usage
+
+```
+    $ fgen --help
+```
 
 ## Bugs and Bug Reports
 
