@@ -26,6 +26,8 @@
 #include <clang/AST/DeclTemplate.h>
 #include <llvm/Support/raw_ostream.h>
 
+#include <FGenConfiguration.hpp>
+
 /*
  * Simple one pass class, which gets used for every valid
  * function declaration. Basically wraps a 'std::string' in
@@ -35,7 +37,8 @@
 
 class FunctionGenerator {
 public:
-    FunctionGenerator(std::string &Buffer);
+    FunctionGenerator(std::string &Buffer,
+                      const FGenConfiguration &Configuration);
 
     void write(const clang::FunctionDecl *FunctionDecl);
 
@@ -45,7 +48,7 @@ private:
     void writeReturnType(const clang::FunctionDecl *FunctionDecl);
     void writeFullName(const clang::FunctionDecl *FunctionDecl);
     void writeParameters(const clang::FunctionDecl *FunctionDecl);
-    void writeParameterName(const clang::ParmVarDecl *Parameter,
+    void writeParameterName(llvm::ArrayRef<const clang::ParmVarDecl *> Params,
                             std::size_t Index);
     void writeQualifiers(const clang::FunctionDecl *FunctionDecl);
     void writeBody(const clang::FunctionDecl *FunctionDecl);
@@ -59,8 +62,8 @@ private:
     bool tryWriteCXXSetAccessor(const clang::CXXMethodDecl *MethodDecl);
 
     llvm::raw_string_ostream OStream_;
-    bool IgnoreNamespaces_;
-    bool ImplementAccessors_;
+
+    const FGenConfiguration *Configuration_;
 };
 
 #endif /* FGEN_FUNCTIONGENERATOR_HPP_ */

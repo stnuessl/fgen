@@ -25,62 +25,63 @@ class FGenASTConsumer : public clang::ASTConsumer {
 public:
     FGenASTConsumer() = default;
 
-    void setTargets(std::shared_ptr<std::unordered_set<std::string>> Targets);
+    void setConfiguration(std::shared_ptr<FGenConfiguration> Configuration);
 
     virtual void HandleTranslationUnit(clang::ASTContext &Context) override;
 
 private:
-    std::shared_ptr<std::unordered_set<std::string>> Targets_;
+    std::shared_ptr<FGenConfiguration> Configuration_;
 };
 
-void FGenASTConsumer::setTargets(
-    std::shared_ptr<std::unordered_set<std::string>> Targets)
+void FGenASTConsumer::setConfiguration(
+    std::shared_ptr<FGenConfiguration> Configuration)
 {
-    Targets_ = std::move(Targets);
+    Configuration_ = std::move(Configuration);
 }
 
 void FGenASTConsumer::HandleTranslationUnit(clang::ASTContext &Context)
 {
     auto Visitor = FGenVisitor();
-    Visitor.setTargets(Targets_);
 
+    Visitor.setConfiguration(Configuration_);
     Visitor.TraverseDecl(Context.getTranslationUnitDecl());
     Visitor.dump();
 }
 
-void FGenAction::setTargets(
-    std::shared_ptr<std::unordered_set<std::string>> Targets)
+void FGenAction::setConfiguration(
+    std::shared_ptr<FGenConfiguration> Configuration)
 {
-    Targets_ = std::move(Targets);
+    Configuration_ = std::move(Configuration);
 }
 
 std::unique_ptr<clang::ASTConsumer>
 FGenAction::CreateASTConsumer(clang::CompilerInstance &CI, llvm::StringRef File)
 {
     auto Consumer = llvm::make_unique<FGenASTConsumer>();
-    Consumer->setTargets(Targets_);
+    Consumer->setConfiguration(Configuration_);
 
     return Consumer;
 }
 
 FGenActionFactory::FGenActionFactory()
-    : Targets_(std::make_shared<std::unordered_set<std::string>>())
-{}
-
-std::unordered_set<std::string> &FGenActionFactory::targets()
+    : Configuration_(std::make_shared<FGenConfiguration>())
 {
-    return *Targets_;
+    /* clang-format... */
 }
 
-const std::unordered_set<std::string> &FGenActionFactory::targets() const
+FGenConfiguration &FGenActionFactory::configuration()
 {
-    return *Targets_;
+    return *Configuration_;
+}
+const FGenConfiguration &FGenActionFactory::configuration() const
+{
+    return *Configuration_;
 }
 
 clang::FrontendAction *FGenActionFactory::create()
 {
     auto Action = new FGenAction();
-    Action->setTargets(Targets_);
+    Action->setConfiguration(Configuration_);
 
     return Action;
 }

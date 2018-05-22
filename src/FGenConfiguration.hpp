@@ -18,34 +18,26 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef FGEN_FGENVISITOR_HPP_
-#define FGEN_FGENVISITOR_HPP_
+#ifndef FGEN_FGENCONFIGURATION_HPP_
+#define FGEN_FGENCONFIGURATION_HPP_
 
-#include <clang/AST/RecursiveASTVisitor.h>
+#include <string>
 #include <unordered_set>
 
-#include <FunctionGenerator.hpp>
-
-class FGenVisitor : public clang::RecursiveASTVisitor<FGenVisitor> {
+class FGenConfiguration {
 public:
-    FGenVisitor();
+    FGenConfiguration() = default;
 
-    void setConfiguration(std::shared_ptr<FGenConfiguration> Configuration);
+    void setImplementAccessors(bool Value);
+    bool implementAccessors() const;
 
-    bool VisitFunctionDecl(clang::FunctionDecl *FunctionDecl);
-
-    void dump(llvm::raw_ostream &OStream = llvm::outs()) const;
+    std::unordered_set<std::string> &targets();
+    const std::unordered_set<std::string> &targets() const;
 
 private:
-    void VisitFunctionDeclImpl(const clang::FunctionDecl *FunctionDecl);
+    bool ImplementAccessors_;
 
-    bool isTarget(const clang::FunctionDecl *Decl);
-
-    std::shared_ptr<FGenConfiguration> Configuration_;
-    std::unordered_set<std::string> VisitedDecls_;
-
-    std::string QualifiedNameBuffer_;
-    std::string Output_;
+    std::unordered_set<std::string> Targets_;
 };
 
-#endif /* FGEN_FGENVISITOR_HPP_ */
+#endif /* FGEN_FGENCONFIGURATION_HPP_ */

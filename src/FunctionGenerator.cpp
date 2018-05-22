@@ -25,8 +25,19 @@
 #include <FunctionGenerator.hpp>
 #include <util/Decl.hpp>
 
-llvm::StringRef lastSection(llvm::StringRef S)
+llvm::StringRef extractRelevantSection(llvm::StringRef S)
 {
+    /*
+     * This functions tries to extract the last section of a 
+     * declaration or value name. Some examples:
+     * 
+     * Input:                   Output:
+     * "var_name_"      --->    "name"
+     * "var_name"       --->    "name"
+     * "FuncName_"      --->    "Name"
+     * "Func_Name_"     --->    "Name"
+     * "MACRO_NAME"     --->    "NAME"
+     */
     S = S.rtrim('_');
 
     auto Index = S.rfind('_');
@@ -58,25 +69,6 @@ llvm::StringRef lastSection(llvm::StringRef S)
     return S;
 }
 
-// static unsigned int getLCSLength(llvm::StringRef S1, llvm::StringRef S2)
-// {
-//     unsigned int Max = 0;
-//
-//     if (S1.size() < S2.size())
-//         std::swap(S1, S2);
-//
-//     for (size_t i = 0; i <  S1.size() && Max < S2.size() ; ++i) {
-//         unsigned int Value = 0;
-//
-//         for (size_t j = 0; i + j < S1.size() && j < S2.size() ; ++j)
-//             Value += (llvm::toLower(S1[i + j]) == llvm::toLower(S2[j]));
-//
-//         Max = std::max(Max, Value);
-//     }
-//
-//     return Max;
-// }
-
 static const clang::FieldDecl *
 bestFieldDeclMatch(const clang::RecordDecl *RecordDecl,
                    clang::QualType Type,
@@ -87,7 +79,7 @@ bestFieldDeclMatch(const clang::RecordDecl *RecordDecl,
 
     auto MaxEditDistance = Name.size();
 
-    Name = lastSection(Name);
+    Name = extractRelevantSection(Name);
     auto NameSize = static_cast<int>(Name.size());
 
     const clang::FieldDecl *BestMatch = nullptr;
@@ -97,7 +89,7 @@ bestFieldDeclMatch(const clang::RecordDecl *RecordDecl,
         if (Type != Field->getType())
             continue;
 
-        auto FieldName = lastSection(Field->getName());
+        auto FieldName = extractRelevantSection(Field->getName());
         auto FieldNameSize = static_cast<int>(FieldName.size());
 
         /*
@@ -120,8 +112,9 @@ bestFieldDeclMatch(const clang::RecordDecl *RecordDecl,
     return BestMatch;
 }
 
-FunctionGenerator::FunctionGenerator(std::string &Buffer)
-    : OStream_(Buffer), IgnoreNamespaces_(true), ImplementAccessors_(true)
+FunctionGenerator::FunctionGenerator(std::string &Buffer,
+                                     const FGenConfiguration &Configuration)
+    : OStream_(Buffer), Configuration_(&Configuration)
 {
     OStream_.SetUnbuffered();
 }
@@ -230,7 +223,8 @@ void FunctionGenerator::writeFullName(
     /* Walk from to top declaration down to 'Decl' */
 
     for (const auto DeclContext : DeclContextVec) {
-        if (IgnoreNamespaces_ && clang::isa<clang::NamespaceDecl>(DeclContext))
+        /* TODO: configuration flag instead of 'true' */
+        if (true && clang::isa<clang::NamespaceDecl>(DeclContext))
             continue;
 
         /*
@@ -320,16 +314,16 @@ void FunctionGenerator::writeParameters(const clang::FunctionDecl *FunctionDecl)
         if (!QualType->isReferenceType() && !QualType->isPointerType())
             OStream_ << " ";
 
-        writeParameterName(Parameters[i], i);
+        writeParameterName(Parameters, i);
     }
 
     OStream_ << ")";
 }
 
-void FunctionGenerator::writeParameterName(const clang::ParmVarDecl *Parameter,
-                                           std::size_t Index)
+void FunctionGenerator::writeParameterName(
+    llvm::ArrayRef<const clang::ParmVarDecl *> Params, std::size_t Index)
 {
-    auto Name = Parameter->getName();
+    auto Name = Params[Index]->getName();
     if (!Name.empty())
         OStream_ << Name;
     else
@@ -347,7 +341,7 @@ void FunctionGenerator::writeQualifiers(const clang::FunctionDecl *FunctionDecl)
 
 void FunctionGenerator::writeBody(const clang::FunctionDecl *FunctionDecl)
 {
-    if (ImplementAccessors_) {
+    if (Configuration_->implementAccessors()) {
         if (tryWriteGetAccessor(FunctionDecl))
             return;
 
@@ -379,16 +373,20 @@ bool FunctionGenerator::tryWriteCGetAccessor(
     if (Parameters.size() != 1)
         return false;
 
-    auto Parameter = Parameters[0];
-    auto Type = Parameter->getType();
-
-    if (!Type->isPointerType())
+    auto PointerType = Parameters[0]->getType()->getAs<clang::PointerType>();
+    if (!PointerType || !PointerType->getPointeeType().isConstQualified())
         return false;
 
-    auto RecordDecl = Type->getPointeeCXXRecordDecl();
-    if (!RecordDecl)
+    auto &ASTContext = FunctionDecl->getASTContext();
+
+    auto PointeeType = PointerType->getPointeeType();
+    auto DesugaredType = PointeeType.getDesugaredType(ASTContext);
+
+    auto RecordType = DesugaredType->getAs<clang::RecordType>();
+    if (!RecordType)
         return false;
 
+    auto RecordDecl = RecordType->getDecl();
     auto ReturnType = FunctionDecl->getReturnType();
     auto Name = FunctionDecl->getName();
 
@@ -398,7 +396,7 @@ bool FunctionGenerator::tryWriteCGetAccessor(
 
     OStream_ << "{\n    return ";
 
-    writeParameterName(Parameter, 0);
+    writeParameterName(Parameters, 0);
 
     OStream_ << "->" << FieldDecl->getName() << ";\n}\n\n";
 
@@ -436,20 +434,23 @@ bool FunctionGenerator::tryWriteCSetAccessor(
     if (Parameters.size() != 2)
         return false;
 
-    auto Parameter1 = Parameters[0];
-    auto Parameter2 = Parameters[1];
+    auto Parameter1Type = Parameters[0]->getType();
 
-    auto Parameter1Type = Parameter1->getType();
-
-    auto PointerType = clang::dyn_cast<clang::PointerType>(Parameter1Type);
+    auto PointerType = Parameter1Type->getAs<clang::PointerType>();
     if (!PointerType || PointerType->getPointeeType().isConstQualified())
         return false;
 
-    auto RecordDecl = Parameter1Type->getPointeeCXXRecordDecl();
-    if (!RecordDecl)
+    auto &ASTContext = FunctionDecl->getASTContext();
+
+    auto PointeeType = PointerType->getPointeeType();
+    auto DesugaredType = PointeeType.getDesugaredType(ASTContext);
+
+    auto RecordType = DesugaredType->getAs<clang::RecordType>();
+    if (!RecordType)
         return false;
 
-    auto Parameter2Type = Parameter2->getType();
+    auto RecordDecl = RecordType->getDecl();
+    auto Parameter2Type = Parameters[1]->getType();
     auto Name = FunctionDecl->getName();
 
     auto FieldDecl = bestFieldDeclMatch(RecordDecl, Parameter2Type, Name);
@@ -458,11 +459,11 @@ bool FunctionGenerator::tryWriteCSetAccessor(
 
     OStream_ << "{\n    ";
 
-    writeParameterName(Parameter1, 0);
+    writeParameterName(Parameters, 0);
 
     OStream_ << "->" << FieldDecl->getName() << " = ";
 
-    writeParameterName(Parameter2, 1);
+    writeParameterName(Parameters, 1);
 
     OStream_ << ";\n}\n\n";
 
@@ -491,7 +492,7 @@ bool FunctionGenerator::tryWriteCXXSetAccessor(
 
     OStream_ << "{\n    " << FieldDecl->getName() << " = ";
 
-    writeParameterName(Parameters[0], 0);
+    writeParameterName(Parameters, 0);
 
     OStream_ << ";\n}\n\n";
 

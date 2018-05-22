@@ -29,16 +29,19 @@ static bool isUserProvided(const clang::FunctionDecl *FunctionDecl)
 }
 
 FGenVisitor::FGenVisitor()
-    : Targets_(nullptr), VisitedDecls_(), QualifiedNameBuffer_(), Output_()
+    : Configuration_(nullptr),
+      VisitedDecls_(),
+      QualifiedNameBuffer_(),
+      Output_()
 {
     QualifiedNameBuffer_.reserve(1024);
     Output_.reserve(2048);
 }
 
-void FGenVisitor::setTargets(
-    std::shared_ptr<std::unordered_set<std::string>> Targets)
+void FGenVisitor::setConfiguration(
+    std::shared_ptr<FGenConfiguration> Configuration)
 {
-    Targets_ = std::move(Targets);
+    Configuration_ = std::move(Configuration);
 }
 
 bool FGenVisitor::VisitFunctionDecl(clang::FunctionDecl *FunctionDecl)
@@ -84,7 +87,7 @@ void FGenVisitor::VisitFunctionDeclImpl(const clang::FunctionDecl *FunctionDecl)
 
     VisitedDecls_.insert(std::move(USR));
 
-    FunctionGenerator FunctionGenerator(Output_);
+    FunctionGenerator FunctionGenerator(Output_, *Configuration_);
     FunctionGenerator.write(FunctionDecl);
 }
 
@@ -94,7 +97,11 @@ bool FGenVisitor::isTarget(const clang::FunctionDecl *Decl)
      * If no 'RecordQualifier' is specified, all function declarations
      * are valid targets.
      */
-    if (!Targets_ || Targets_->empty())
+    if (!Configuration_)
+        return true;
+
+    auto &Targets = Configuration_->targets();
+    if (Targets.empty())
         return true;
 
     auto MethodDecl = clang::dyn_cast<clang::CXXMethodDecl>(Decl);
@@ -108,5 +115,5 @@ bool FGenVisitor::isTarget(const clang::FunctionDecl *Decl)
 
     MethodDecl->getParent()->printQualifiedName(OStream);
 
-    return !!Targets_->count(QualifiedNameBuffer_);
+    return !!Targets.count(QualifiedNameBuffer_);
 }

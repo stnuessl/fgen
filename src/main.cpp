@@ -25,10 +25,11 @@
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/raw_ostream.h>
 
+#include <util/CommandLine.hpp>
+
 #include <FGenAction.hpp>
 #include <FGenCompilationDatabase.hpp>
 #include <FGenVisitor.hpp>
-#include <util/CommandLine.hpp>
 
 /* clang-format off */
 
@@ -162,7 +163,8 @@ int main(int argc, const char *argv[])
     auto Begin = std::make_move_iterator(TargetVec.begin());
     auto End = std::make_move_iterator(TargetVec.end());
 
-    Factory.targets().insert(Begin, End);
+    Factory.configuration().targets().insert(Begin, End);
+    Factory.configuration().setImplementAccessors(true);
 
     clang::tooling::ClangTool Tool(*Database, Files);
 

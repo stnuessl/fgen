@@ -26,31 +26,33 @@
 #include <clang/Frontend/FrontendAction.h>
 #include <clang/Tooling/Tooling.h>
 
+#include <FGenConfiguration.hpp>
+
 class FGenAction : public clang::ASTFrontendAction {
 public:
     FGenAction() = default;
 
-    void setTargets(std::shared_ptr<std::unordered_set<std::string>> Targets);
+    void setConfiguration(std::shared_ptr<FGenConfiguration> Configuration);
 
     virtual std::unique_ptr<clang::ASTConsumer>
     CreateASTConsumer(clang::CompilerInstance &CI,
                       llvm::StringRef File) override;
 
 private:
-    std::shared_ptr<std::unordered_set<std::string>> Targets_;
+    std::shared_ptr<FGenConfiguration> Configuration_;
 };
 
 class FGenActionFactory : public clang::tooling::FrontendActionFactory {
 public:
     FGenActionFactory();
 
-    std::unordered_set<std::string> &targets();
-    const std::unordered_set<std::string> &targets() const;
+    FGenConfiguration &configuration();
+    const FGenConfiguration &configuration() const;
 
     virtual clang::FrontendAction *create() override;
 
 private:
-    std::shared_ptr<std::unordered_set<std::string>> Targets_;
+    std::shared_ptr<FGenConfiguration> Configuration_;
 };
 
 #endif /* FGEN_FGENACTION_HPP_ */
