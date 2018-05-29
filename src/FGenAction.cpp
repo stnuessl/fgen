@@ -18,6 +18,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <llvm/Support/raw_ostream.h>
+
+#include <util/CommandLine.hpp>
 #include <FGenAction.hpp>
 #include <FGenVisitor.hpp>
 
@@ -45,7 +48,25 @@ void FGenASTConsumer::HandleTranslationUnit(clang::ASTContext &Context)
 
     Visitor.setConfiguration(Configuration_);
     Visitor.TraverseDecl(Context.getTranslationUnitDecl());
-    Visitor.dump();
+
+    auto &OutputFile = Configuration_->outputFile();
+
+    if (!OutputFile.empty()) {
+        std::error_code Error;
+
+        llvm::raw_fd_ostream OS(OutputFile, Error, llvm::sys::fs::F_Append);
+        if (Error) {
+            util::cl::error() << "fgen: failed to open file \""
+                              << OutputFile << "\" for writing:\n"
+                              << "    " << Error.message() << "\n";
+            std::exit(EXIT_FAILURE);
+        }
+        
+        Visitor.dump(OS);
+        return;
+    }
+
+    Visitor.dump(llvm::outs());
 }
 
 void FGenAction::setConfiguration(

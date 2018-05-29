@@ -24,13 +24,14 @@
 
 #include <FunctionGenerator.hpp>
 #include <util/Decl.hpp>
+#include <util/Type.hpp>
 
-llvm::StringRef extractRelevantSection(llvm::StringRef S)
+static llvm::StringRef extractRelevantSection(llvm::StringRef S)
 {
     /*
-     * This functions tries to extract the last section of a 
+     * This functions tries to extract the last section of a
      * declaration or value name. Some examples:
-     * 
+     *
      * Input:                   Output:
      * "var_name_"      --->    "name"
      * "var_name"       --->    "name"
@@ -69,10 +70,9 @@ llvm::StringRef extractRelevantSection(llvm::StringRef S)
     return S;
 }
 
-static const clang::FieldDecl *
-bestFieldDeclMatch(const clang::RecordDecl *RecordDecl,
-                   clang::QualType Type,
-                   llvm::StringRef Name)
+template<typename Pred>
+static const clang::FieldDecl *bestFieldDeclMatch(
+    const clang::RecordDecl *RecordDecl, llvm::StringRef Name, Pred &&PredFunc)
 {
     if (RecordDecl->field_empty())
         return nullptr;
@@ -85,11 +85,11 @@ bestFieldDeclMatch(const clang::RecordDecl *RecordDecl,
     const clang::FieldDecl *BestMatch = nullptr;
     unsigned int BestEditDistance = MaxEditDistance;
 
-    for (const auto &Field : RecordDecl->fields()) {
-        if (Type != Field->getType())
+    for (const auto &FieldDecl : RecordDecl->fields()) {
+        if (!PredFunc(FieldDecl->getType()))
             continue;
 
-        auto FieldName = extractRelevantSection(Field->getName());
+        auto FieldName = extractRelevantSection(FieldDecl->getName());
         auto FieldNameSize = static_cast<int>(FieldName.size());
 
         /*
@@ -104,7 +104,7 @@ bestFieldDeclMatch(const clang::RecordDecl *RecordDecl,
         auto Distance = Name.edit_distance(FieldName, true, BestEditDistance);
 
         if (Distance < BestEditDistance) {
-            BestMatch = Field;
+            BestMatch = FieldDecl;
             BestEditDistance = Distance;
         }
     }
@@ -349,7 +349,64 @@ void FunctionGenerator::writeBody(const clang::FunctionDecl *FunctionDecl)
             return;
     }
 
+    auto ReturnType = FunctionDecl->getReturnType();
+
+    if (Configuration_->implementReturnValues() && !ReturnType->isVoidType()) {
+        
+        if (tryWriteReturnStatement(FunctionDecl))
+            return;
+    }
+
     OStream_ << "{\n\n}\n\n";
+}
+
+bool FunctionGenerator::tryWriteReturnStatement(const clang::FunctionDecl *FunctionDecl)
+{
+    auto ReturnType = FunctionDecl->getReturnType();
+    
+    if (ReturnType->isPointerType() || ReturnType->isBuiltinType()) {
+        OStream_ << "{\n    return 0;\n}\n\n";
+        return true;
+    }
+    
+    if (ReturnType->isFloatingType()) {
+        OStream_ << "{\n    return 0.0;\n}\n\n";
+        return true;
+    }
+    
+    if (util::type::hasDefaultConstructor(ReturnType)) {
+        auto &Policy = FunctionDecl->getASTContext().getPrintingPolicy();
+        
+        OStream_ << "{\n    return ";
+        ReturnType.print(OStream_, Policy);
+        OStream_ << "();\n}\n\n";
+        return true;
+    }
+    
+    if (ReturnType->isReferenceType()) {
+        auto MethodDecl = clang::dyn_cast<clang::CXXMethodDecl>(FunctionDecl);
+        if (MethodDecl) {
+            /* 
+             * TODO: comments and extra class or functions for
+             * extracting fields of records for assignment
+             */
+            auto RecordDecl = MethodDecl->getParent();
+            auto Name = MethodDecl->getName();
+            
+            auto TypePred = [ReturnType](clang::QualType FieldType) {
+                return util::type::isReturnAssignmentOk(ReturnType, FieldType);
+            };
+            
+            auto FieldDecl = bestFieldDeclMatch(RecordDecl, Name, TypePred);
+            if (FieldDecl) {
+                OStream_ << "{\n    return " << FieldDecl->getName() 
+                         << ";\n}\n\n";
+                return true;
+            }
+        }
+    }
+    
+    return false;
 }
 
 bool FunctionGenerator::tryWriteGetAccessor(
@@ -387,10 +444,15 @@ bool FunctionGenerator::tryWriteCGetAccessor(
         return false;
 
     auto RecordDecl = RecordType->getDecl();
-    auto ReturnType = FunctionDecl->getReturnType();
     auto Name = FunctionDecl->getName();
 
-    auto FieldDecl = bestFieldDeclMatch(RecordDecl, ReturnType, Name);
+    const auto ReturnType = FunctionDecl->getReturnType();
+
+    auto TypePred = [ReturnType](clang::QualType FieldType) {
+        return util::type::isReturnAssignmentOk(ReturnType, FieldType);
+    };
+
+    auto FieldDecl = bestFieldDeclMatch(RecordDecl, Name, TypePred);
     if (!FieldDecl)
         return false;
 
@@ -414,10 +476,15 @@ bool FunctionGenerator::tryWriteCXXGetAccessor(
 
     auto RecordDecl = MethodDecl->getParent();
 
-    auto ReturnType = MethodDecl->getReturnType();
+    /* TODO: comments */
     auto Name = MethodDecl->getName();
+    const auto ReturnType = MethodDecl->getReturnType();
 
-    auto FieldDecl = bestFieldDeclMatch(RecordDecl, ReturnType, Name);
+    auto TypePred = [ReturnType](clang::QualType FieldType) {
+        return util::type::isReturnAssignmentOk(ReturnType, FieldType);
+    };
+
+    auto FieldDecl = bestFieldDeclMatch(RecordDecl, Name, TypePred);
     if (!FieldDecl)
         return false;
 
@@ -450,10 +517,15 @@ bool FunctionGenerator::tryWriteCSetAccessor(
         return false;
 
     auto RecordDecl = RecordType->getDecl();
-    auto Parameter2Type = Parameters[1]->getType();
     auto Name = FunctionDecl->getName();
 
-    auto FieldDecl = bestFieldDeclMatch(RecordDecl, Parameter2Type, Name);
+    const auto Parameter2Type = Parameters[1]->getType();
+
+    auto TypePred = [Parameter2Type](clang::QualType FieldType) {
+        return util::type::isVariableAssignmentOk(FieldType, Parameter2Type);
+    };
+
+    auto FieldDecl = bestFieldDeclMatch(RecordDecl, Name, TypePred);
     if (!FieldDecl)
         return false;
 
@@ -483,16 +555,27 @@ bool FunctionGenerator::tryWriteCXXSetAccessor(
 
     auto RecordDecl = MethodDecl->getParent();
 
-    auto Type = Parameters[0]->getType();
     auto Name = MethodDecl->getName();
 
-    auto FieldDecl = bestFieldDeclMatch(RecordDecl, Type, Name);
+    const auto Type = Parameters[0]->getType();
+    auto TypePred = [Type](clang::QualType FieldType) {
+        return util::type::isVariableAssignmentOk(FieldType, Type);
+    };
+
+    auto FieldDecl = bestFieldDeclMatch(RecordDecl, Name, TypePred);
     if (!FieldDecl)
         return false;
 
     OStream_ << "{\n    " << FieldDecl->getName() << " = ";
 
+    bool UseMoveAssignment = util::type::hasMoveAssignment(Type);
+    if (UseMoveAssignment)
+        OStream_ << "std::move(";
+
     writeParameterName(Parameters, 0);
+
+    if (UseMoveAssignment)
+        OStream_ << ")";
 
     OStream_ << ";\n}\n\n";
 

@@ -30,6 +30,26 @@ bool FGenConfiguration::implementAccessors() const
     return ImplementAccessors_;
 }
 
+void FGenConfiguration::setImplementReturnValues(bool Value)
+{
+    ImplementReturnValues_ = Value;
+}
+
+bool FGenConfiguration::implementReturnValues() const
+{
+    return ImplementReturnValues_;
+}
+
+void FGenConfiguration::setOutputFile(std::string File)
+{
+    OutputFile_ = std::move(File);
+}
+
+const std::string &FGenConfiguration::outputFile() const
+{
+    return OutputFile_;
+}
+
 std::unordered_set<std::string> &FGenConfiguration::targets()
 {
     return Targets_;

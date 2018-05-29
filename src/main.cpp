@@ -47,7 +47,16 @@ static llvm::cl::list<std::string> TargetVec(
 );
 
 static llvm::cl::opt<bool> ImplementAccessors(
-    "implement-accessors",
+    "accessors",
+    llvm::cl::desc(
+        "Try to automatically implement accessor functions."
+    ),
+    llvm::cl::cat(FGenOptions),
+    llvm::cl::init(false)
+);
+
+static llvm::cl::opt<bool> ImplementReturnValues(
+    "return-values",
     llvm::cl::desc(
         "Try to automatically implement accessor functions."
     ),
@@ -68,13 +77,22 @@ static llvm::cl::opt<bool> IgnoreNamespaces(
 static llvm::cl::opt<std::string> DatabasePath(
     "compilation-database",
     llvm::cl::desc(
-        "Specify the compilation database <file>.\n"
+        "Specifies the project's compilation database file.\n"
         "Usually it is named \"compile_commands.json\".\n"
-        "Alternatively, a \"compile_flags.txt\" will suffice, too."
+        "Alternatively, a \"compile_flags.txt\" will suffice, too.\n"
         "If not specified fgen will automatically search all\n"
         "parent directories of the first specified source file for such a\n"
         "compilation database."
-        
+    ),
+    llvm::cl::value_desc("file"),
+    llvm::cl::cat(FGenOptions)
+);
+
+static llvm::cl::opt<std::string> OutputFile(
+    "output",
+    llvm::cl::desc(
+        "Specifies the file to which the generated functions "
+        "will be written to."
     ),
     llvm::cl::value_desc("file"),
     llvm::cl::cat(FGenOptions)
@@ -159,12 +177,15 @@ int main(int argc, const char *argv[])
     }
 
     auto Factory = FGenActionFactory();
+    auto &Configuration = Factory.configuration();
 
     auto Begin = std::make_move_iterator(TargetVec.begin());
     auto End = std::make_move_iterator(TargetVec.end());
 
-    Factory.configuration().targets().insert(Begin, End);
-    Factory.configuration().setImplementAccessors(true);
+    Configuration.setImplementAccessors(true);
+    Configuration.setImplementReturnValues(true);
+    Configuration.setOutputFile(std::move(OutputFile));
+    Configuration.targets().insert(Begin, End);
 
     clang::tooling::ClangTool Tool(*Database, Files);
 

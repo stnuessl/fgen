@@ -3,14 +3,78 @@
 # fgen - function generator for C and C++
 
 ## Overview
+* [Work in progress.](README.md#work-in-progress)
+* [fgen - function generator for C and C++](README.md#fgen---function-generator-for-c-and-c)
+    * [Overview](README.md#overview)
+    * [Motivation](README.md#motivation)
+    * [Advantages](README.md#advantages)
+    * [Disadvantages](README.md#disadvantages)
+    * [Project Status](README.md#project-status)
+        * [Features](README.md#features)
+        * [What are possible improvements for the future?](README.md#what-are-possible-improvements-for-the-future)
+    * [Installation](README.md#installation)
+        * [Toolchain](README.md#toolchain)
+        * [Dependencies](README.md#dependencies)
+            * [Arch Linux](README.md#arch-linux)
+        * [Compiling](README.md#compiling)
+    * [Usage](README.md#usage)
+    * [Troubleshooting](README.md#troubleshooting)
+    * [Bugs and Bug Reports](README.md#bugs-and-bug-reports)
+
 
 ## Motivation
 
 ## Advantages
 
+Here are some of the advantages I experienced will working on and with __fgen__.
+Using __fgen__ ...
+
+* ... is faster than manually writing or copying the function 
+declarations from header files to source files.
+* ... will reduce mistakes. Ever accidentally forgot to remove the trailing 
+";" of the function declaration? Or forgot to remove the "virtual" qualifier
+of a function? __fgen__ will not  make such mistakes therefore enabling a 
+faster edit - compile - debug cycle.
+* ... is not dependant on any graphical user interface. Use __fgen__ with your
+favorite text editor.
+
 ## Disadvantages
 
+* The lack of a graphical user interface makes __fgen__ less accessible
+for users unfamiliar with a shell.
+* Depending on the build system it can be quite hard to get a 
+compilation database.
+* Overkill if used on a file with only a few functions.
+
 ## Project Status
+
+__fgen__ should compile and run. The code is not very well tested and still in
+development. Use at your own risk and expect some bugs, however __fgen__ treats
+all input files as read only, so if you do not overwrite your own files
+your code should be save.
+
+### Features
+
+* Create empty function definitions from parsing function declarations.
+* Automatically implement accessor functions.
+
+### What are possible improvements for the future?
+
+* Set Accessors could automatically use move semantics if they are 
+working on a copy.
+* Accessors: better handling of pointers and references.
+* Automatically implement get-accessors for const pointers and const references.
+* Suppress (syntax) errors or at least give an option to do so. 
+There are much better tools out there for this anyway, so a user should be 
+primarily concerned about the generated output of __fgen__.
+* Correctly handle namespaces by putting them before the corresponding 
+function definitions (but keep the option to put them in the function name 
+qualifiers as an alternative.)
+* Option --target" should also be usable for C code.
+* Add "--output" option to specify a file where the function definitions will
+get appended to.
+* Autostub all function return values, either by using an exception, a default
+return value or both. This enables the developer to build his project again.
 
 ## Installation
 
@@ -80,10 +144,36 @@ system:
     $ fgen --help
 ```
 
+## Troubleshooting
+    
 ## Bugs and Bug Reports
 
-# What can be improved on in the future?
+You've found a bug in __fgen__ ? That's actually great (at least for me), 
+because this means I can improve my project.
+I really appreciate any bug reports as long as they contain the following 
+information:
 
-* Set Accessors could automatically use move semantics if they are working on a copy.
-* Accessors: better handling of pointers and references.
-* Automatically implement get-accessors for const pointers and const references.
+* The __fgen__ invocation which does __not__ produce the desired result.
+* A __minimal__ and working program (source code, the shorter the better) 
+which the __fgen__ invocation has to be run on.
+* A description of the desired / expected result.
+* A description of the actual result with emphasis on the differences between
+the desired and actual result.
+* A trivial and working _compile_commands.json_ or _compile_flags.txt_, like:
+```
+[{
+    "file": "main.cpp",
+    "directory": "/path/to/directory/",
+    "command": "g++ -std=c++11 -o test /path/to/directory/main.cpp"
+}]
+```
+or
+```
+-std=c++11
+-DMY_PP_MACRO_DEFS
+-Imy/include/directories
+(...)
+```
+
+If you succeed in providing these requirements I will try to fix the 
+experienced bug.

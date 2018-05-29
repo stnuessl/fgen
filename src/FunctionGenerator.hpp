@@ -37,6 +37,7 @@
 
 class FunctionGenerator {
 public:
+    /* TODO: unordered_set with needed header files */
     FunctionGenerator(std::string &Buffer,
                       const FGenConfiguration &Configuration);
 
@@ -53,6 +54,7 @@ private:
     void writeQualifiers(const clang::FunctionDecl *FunctionDecl);
     void writeBody(const clang::FunctionDecl *FunctionDecl);
 
+    bool tryWriteReturnStatement(const clang::FunctionDecl *FunctionDecl);
     bool tryWriteGetAccessor(const clang::FunctionDecl *FunctionDecl);
     bool tryWriteCGetAccessor(const clang::FunctionDecl *FunctionDecl);
     bool tryWriteCXXGetAccessor(const clang::CXXMethodDecl *MethodDecl);

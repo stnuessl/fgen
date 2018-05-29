@@ -18,34 +18,26 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef FGEN_FGENCONFIGURATION_HPP_
-#define FGEN_FGENCONFIGURATION_HPP_
+#ifndef FGEN_UTIL_TYPE_HPP_
+#define FGEN_UTIL_TYPE_HPP_
 
-#include <string>
-#include <unordered_set>
+#include <clang/AST/Type.h>
 
-class FGenConfiguration {
-public:
-    FGenConfiguration() = default;
+namespace util {
+namespace type {
 
-    void setImplementAccessors(bool Value);
-    bool implementAccessors() const;
+clang::QualType removeConst(clang::QualType Type);
 
-    void setImplementReturnValues(bool Value);
-    bool implementReturnValues() const;
+clang::QualType getNonConstNonReferenceType(clang::QualType Type);
 
-    void setOutputFile(std::string File);
-    const std::string &outputFile() const;
+bool isReturnAssignmentOk(clang::QualType Type1, clang::QualType Type2);
 
-    std::unordered_set<std::string> &targets();
-    const std::unordered_set<std::string> &targets() const;
+bool isVariableAssignmentOk(clang::QualType Type1, clang::QualType Type2);
 
-private:
-    bool ImplementAccessors_;
-    bool ImplementReturnValues_;
+bool hasDefaultConstructor(const clang::QualType Type);
 
-    std::string OutputFile_;
-    std::unordered_set<std::string> Targets_;
-};
+bool hasMoveAssignment(const clang::QualType Type);
+}
+}
 
-#endif /* FGEN_FGENCONFIGURATION_HPP_ */
+#endif /* FGEN_UTIL_TYPE_HPP_ */
