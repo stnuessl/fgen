@@ -32,6 +32,7 @@ FGenVisitor::FGenVisitor()
     : Configuration_(nullptr),
       VisitedDecls_(),
       QualifiedNameBuffer_(),
+      Includes_(),
       Output_()
 {
     QualifiedNameBuffer_.reserve(1024);
@@ -59,7 +60,10 @@ bool FGenVisitor::VisitFunctionDecl(clang::FunctionDecl *FunctionDecl)
 
 void FGenVisitor::dump(llvm::raw_ostream &OStream) const
 {
-    OStream << Output_ << "\n";
+    for (const auto &Include : Includes_)
+        OStream << Include << "\n";
+
+    OStream << "\n" << Output_ << "\n";
 }
 
 void FGenVisitor::VisitFunctionDeclImpl(const clang::FunctionDecl *FunctionDecl)
@@ -87,7 +91,7 @@ void FGenVisitor::VisitFunctionDeclImpl(const clang::FunctionDecl *FunctionDecl)
 
     VisitedDecls_.insert(std::move(USR));
 
-    FunctionGenerator FunctionGenerator(Output_, *Configuration_);
+    FunctionGenerator FunctionGenerator(Output_, Includes_, *Configuration_);
     FunctionGenerator.write(FunctionDecl);
 }
 

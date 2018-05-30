@@ -20,9 +20,9 @@
 
 #include <llvm/Support/raw_ostream.h>
 
-#include <util/CommandLine.hpp>
 #include <FGenAction.hpp>
 #include <FGenVisitor.hpp>
+#include <util/CommandLine.hpp>
 
 class FGenASTConsumer : public clang::ASTConsumer {
 public:
@@ -56,12 +56,12 @@ void FGenASTConsumer::HandleTranslationUnit(clang::ASTContext &Context)
 
         llvm::raw_fd_ostream OS(OutputFile, Error, llvm::sys::fs::F_Append);
         if (Error) {
-            util::cl::error() << "fgen: failed to open file \""
-                              << OutputFile << "\" for writing:\n"
+            util::cl::error() << "fgen: failed to open file \"" << OutputFile
+                              << "\" for writing:\n"
                               << "    " << Error.message() << "\n";
             std::exit(EXIT_FAILURE);
         }
-        
+
         Visitor.dump(OS);
         return;
     }

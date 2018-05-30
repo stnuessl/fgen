@@ -25,6 +25,18 @@
 namespace util {
 namespace type {
 
+// clang::QualType getPointeeType(clang::QualType Type);
+// {
+//     if (Type->isPointerType() || Type->isReferenceType())
+//         Type = Type->getPointeeType();
+//
+//     if ()
+//     Type = Type.getNonReferenceType();
+//
+//     if
+//
+// }
+
 clang::QualType removeConst(clang::QualType Type)
 {
     if (!Type.isConstQualified())
@@ -41,7 +53,6 @@ clang::QualType getNonConstNonReferenceType(clang::QualType Type)
 {
     return removeConst(Type.getNonReferenceType());
 }
-
 
 bool isReturnAssignmentOk(clang::QualType Type1, clang::QualType Type2)
 {
@@ -71,7 +82,7 @@ bool isReturnAssignmentOk(clang::QualType Type1, clang::QualType Type2)
 bool isVariableAssignmentOk(clang::QualType Type1, clang::QualType Type2)
 {
     bool Type1Const = Type1.isConstQualified();
-    
+
     if (Type1Const && !Type1->isPointerType() && !Type1->isReferenceType())
         return false;
 

@@ -74,6 +74,11 @@ template<typename Pred>
 static const clang::FieldDecl *bestFieldDeclMatch(
     const clang::RecordDecl *RecordDecl, llvm::StringRef Name, Pred &&PredFunc)
 {
+    /*
+     * This function tries to find a field inside of "RecordDecl" which
+     * matches fairly decently with "Name" and fullfills the type
+     * predicate defined in "PredFunc".
+     */
     if (RecordDecl->field_empty())
         return nullptr;
 
@@ -113,8 +118,9 @@ static const clang::FieldDecl *bestFieldDeclMatch(
 }
 
 FunctionGenerator::FunctionGenerator(std::string &Buffer,
+                                     std::unordered_set<std::string> &Includes,
                                      const FGenConfiguration &Configuration)
-    : OStream_(Buffer), Configuration_(&Configuration)
+    : OStream_(Buffer), Includes_(&Includes), Configuration_(&Configuration)
 {
     OStream_.SetUnbuffered();
 }
@@ -314,21 +320,25 @@ void FunctionGenerator::writeParameters(const clang::FunctionDecl *FunctionDecl)
         if (!QualType->isReferenceType() && !QualType->isPointerType())
             OStream_ << " ";
 
-        writeParameterName(Parameters, i);
+        auto Name = Parameters[i]->getName();
+        if (Name.empty())
+            OStream_ << "arg" << i + 1;
+        else
+            OStream_ << Name;
     }
 
     OStream_ << ")";
 }
 
-void FunctionGenerator::writeParameterName(
-    llvm::ArrayRef<const clang::ParmVarDecl *> Params, std::size_t Index)
-{
-    auto Name = Params[Index]->getName();
-    if (!Name.empty())
-        OStream_ << Name;
-    else
-        OStream_ << "arg" << Index + 1;
-}
+// void FunctionGenerator::writeParameterName(
+//     llvm::ArrayRef<const clang::ParmVarDecl *> Params, std::size_t Index)
+// {
+//     auto Name = Params[Index]->getName();
+//     if (!Name.empty())
+//         OStream_ << Name;
+//     else
+//         OStream_ << "arg" << Index + 1;
+// }
 
 void FunctionGenerator::writeQualifiers(const clang::FunctionDecl *FunctionDecl)
 {
@@ -352,7 +362,7 @@ void FunctionGenerator::writeBody(const clang::FunctionDecl *FunctionDecl)
     auto ReturnType = FunctionDecl->getReturnType();
 
     if (Configuration_->implementReturnValues() && !ReturnType->isVoidType()) {
-        
+
         if (tryWriteReturnStatement(FunctionDecl))
             return;
     }
@@ -360,52 +370,53 @@ void FunctionGenerator::writeBody(const clang::FunctionDecl *FunctionDecl)
     OStream_ << "{\n\n}\n\n";
 }
 
-bool FunctionGenerator::tryWriteReturnStatement(const clang::FunctionDecl *FunctionDecl)
+bool FunctionGenerator::tryWriteReturnStatement(
+    const clang::FunctionDecl *FunctionDecl)
 {
     auto ReturnType = FunctionDecl->getReturnType();
-    
+
     if (ReturnType->isPointerType() || ReturnType->isBuiltinType()) {
         OStream_ << "{\n    return 0;\n}\n\n";
         return true;
     }
-    
+
     if (ReturnType->isFloatingType()) {
         OStream_ << "{\n    return 0.0;\n}\n\n";
         return true;
     }
-    
+
     if (util::type::hasDefaultConstructor(ReturnType)) {
         auto &Policy = FunctionDecl->getASTContext().getPrintingPolicy();
-        
+
         OStream_ << "{\n    return ";
         ReturnType.print(OStream_, Policy);
         OStream_ << "();\n}\n\n";
         return true;
     }
-    
+
     if (ReturnType->isReferenceType()) {
         auto MethodDecl = clang::dyn_cast<clang::CXXMethodDecl>(FunctionDecl);
         if (MethodDecl) {
-            /* 
+            /*
              * TODO: comments and extra class or functions for
              * extracting fields of records for assignment
              */
             auto RecordDecl = MethodDecl->getParent();
             auto Name = MethodDecl->getName();
-            
+
             auto TypePred = [ReturnType](clang::QualType FieldType) {
                 return util::type::isReturnAssignmentOk(ReturnType, FieldType);
             };
-            
+
             auto FieldDecl = bestFieldDeclMatch(RecordDecl, Name, TypePred);
             if (FieldDecl) {
-                OStream_ << "{\n    return " << FieldDecl->getName() 
+                OStream_ << "{\n    return " << FieldDecl->getName()
                          << ";\n}\n\n";
                 return true;
             }
         }
     }
-    
+
     return false;
 }
 
@@ -425,21 +436,24 @@ bool FunctionGenerator::tryWriteGetAccessor(
 bool FunctionGenerator::tryWriteCGetAccessor(
     const clang::FunctionDecl *FunctionDecl)
 {
+    /*
+     * We define a get accessor function in C looks like this:
+     *      a function_name(const struct b *p);
+     *
+     * Check if the current "FunctionDecl" matches with this
+     * definition.
+     */
+
     auto Parameters = FunctionDecl->parameters();
 
     if (Parameters.size() != 1)
         return false;
 
-    auto PointerType = Parameters[0]->getType()->getAs<clang::PointerType>();
-    if (!PointerType || !PointerType->getPointeeType().isConstQualified())
+    auto Type = Parameters[0]->getType()->getPointeeType();
+    if (Type.isNull() || !Type.isConstQualified())
         return false;
 
-    auto &ASTContext = FunctionDecl->getASTContext();
-
-    auto PointeeType = PointerType->getPointeeType();
-    auto DesugaredType = PointeeType.getDesugaredType(ASTContext);
-
-    auto RecordType = DesugaredType->getAs<clang::RecordType>();
+    auto RecordType = Type->getAs<clang::RecordType>();
     if (!RecordType)
         return false;
 
@@ -456,11 +470,9 @@ bool FunctionGenerator::tryWriteCGetAccessor(
     if (!FieldDecl)
         return false;
 
-    OStream_ << "{\n    return ";
-
-    writeParameterName(Parameters, 0);
-
-    OStream_ << "->" << FieldDecl->getName() << ";\n}\n\n";
+    OStream_ << "{\n    return "
+             << util::decl::getNameOrDefault(Parameters[0], "arg1") << "->"
+             << FieldDecl->getName() << ";\n}\n\n";
 
     return true;
 }
@@ -468,6 +480,18 @@ bool FunctionGenerator::tryWriteCGetAccessor(
 bool FunctionGenerator::tryWriteCXXGetAccessor(
     const clang::CXXMethodDecl *MethodDecl)
 {
+    /*
+     * We define a get accessor function in C++ looks like this:
+     *      class a {
+     *          ...
+     *          b function_name() const;
+     *          ...
+     *      };
+     *
+     * Check if the current "MethodDecl" matches with this
+     * definition.
+     */
+
     if (!MethodDecl->isConst())
         return false;
 
@@ -475,8 +499,6 @@ bool FunctionGenerator::tryWriteCXXGetAccessor(
         return false;
 
     auto RecordDecl = MethodDecl->getParent();
-
-    /* TODO: comments */
     auto Name = MethodDecl->getName();
     const auto ReturnType = MethodDecl->getReturnType();
 
@@ -496,48 +518,44 @@ bool FunctionGenerator::tryWriteCXXGetAccessor(
 bool FunctionGenerator::tryWriteCSetAccessor(
     const clang::FunctionDecl *FunctionDecl)
 {
+    /*
+     * We define a set accessor function in C looks like this:
+     *      void function_name(struct a *p, b val);
+     *
+     * Check if the current "FunctionDecl" matches with this
+     * definition.
+     */
+
     auto Parameters = FunctionDecl->parameters();
 
     if (Parameters.size() != 2)
         return false;
 
-    auto Parameter1Type = Parameters[0]->getType();
-
-    auto PointerType = Parameter1Type->getAs<clang::PointerType>();
-    if (!PointerType || PointerType->getPointeeType().isConstQualified())
+    auto Parameter1Type = Parameters[0]->getType()->getPointeeType();
+    if (Parameter1Type.isNull() || Parameter1Type.isConstQualified())
         return false;
 
-    auto &ASTContext = FunctionDecl->getASTContext();
-
-    auto PointeeType = PointerType->getPointeeType();
-    auto DesugaredType = PointeeType.getDesugaredType(ASTContext);
-
-    auto RecordType = DesugaredType->getAs<clang::RecordType>();
+    auto RecordType = Parameter1Type->getAs<clang::RecordType>();
     if (!RecordType)
         return false;
 
     auto RecordDecl = RecordType->getDecl();
     auto Name = FunctionDecl->getName();
 
-    const auto Parameter2Type = Parameters[1]->getType();
+    const auto RHSType = Parameters[1]->getType();
 
-    auto TypePred = [Parameter2Type](clang::QualType FieldType) {
-        return util::type::isVariableAssignmentOk(FieldType, Parameter2Type);
+    auto TypePred = [RHSType](clang::QualType FieldType) {
+        return util::type::isVariableAssignmentOk(FieldType, RHSType);
     };
 
     auto FieldDecl = bestFieldDeclMatch(RecordDecl, Name, TypePred);
     if (!FieldDecl)
         return false;
 
-    OStream_ << "{\n    ";
-
-    writeParameterName(Parameters, 0);
-
-    OStream_ << "->" << FieldDecl->getName() << " = ";
-
-    writeParameterName(Parameters, 1);
-
-    OStream_ << ";\n}\n\n";
+    OStream_ << "{\n    " << util::decl::getNameOrDefault(Parameters[0], "arg1")
+             << "->" << FieldDecl->getName() << " = "
+             << util::decl::getNameOrDefault(Parameters[1], "arg2")
+             << ";\n}\n\n";
 
     return true;
 }
@@ -545,6 +563,18 @@ bool FunctionGenerator::tryWriteCSetAccessor(
 bool FunctionGenerator::tryWriteCXXSetAccessor(
     const clang::CXXMethodDecl *MethodDecl)
 {
+    /*
+     * We define a set accessor function in C++ looks like this:
+     *      class a {
+     *          ...
+     *          void function_name(b val);
+     *          ...
+     *      };
+     *
+     * Check if the current "MethodDecl" matches with this
+     * definition.
+     */
+
     if (MethodDecl->isConst())
         return false;
 
@@ -554,12 +584,11 @@ bool FunctionGenerator::tryWriteCXXSetAccessor(
         return false;
 
     auto RecordDecl = MethodDecl->getParent();
-
     auto Name = MethodDecl->getName();
 
-    const auto Type = Parameters[0]->getType();
-    auto TypePred = [Type](clang::QualType FieldType) {
-        return util::type::isVariableAssignmentOk(FieldType, Type);
+    const auto RHSType = Parameters[0]->getType();
+    auto TypePred = [RHSType](clang::QualType FieldType) {
+        return util::type::isVariableAssignmentOk(FieldType, RHSType);
     };
 
     auto FieldDecl = bestFieldDeclMatch(RecordDecl, Name, TypePred);
@@ -568,11 +597,21 @@ bool FunctionGenerator::tryWriteCXXSetAccessor(
 
     OStream_ << "{\n    " << FieldDecl->getName() << " = ";
 
-    bool UseMoveAssignment = util::type::hasMoveAssignment(Type);
+    /* Try to use the move assignment operator if available */
+    bool UseMoveAssignment = false;
+    if (util::type::hasMoveAssignment(RHSType)) {
+        std::unordered_set<std::string>::iterator It;
+        bool Ok;
+
+        std::tie(It, Ok) = Includes_->insert("#include <utility>");
+
+        UseMoveAssignment = Ok || It != Includes_->end();
+    }
+
     if (UseMoveAssignment)
         OStream_ << "std::move(";
 
-    writeParameterName(Parameters, 0);
+    OStream_ << util::decl::getNameOrDefault(Parameters[0], "arg1");
 
     if (UseMoveAssignment)
         OStream_ << ")";

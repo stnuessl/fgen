@@ -27,6 +27,9 @@
 namespace util {
 namespace decl {
 
+llvm::StringRef getNameOrDefault(const clang::Decl *Decl,
+                                 llvm::StringRef Default);
+
 std::string generateUSR(const clang::Decl *Decl);
 
 void getDeclContexts(const clang::NamedDecl *Decl,

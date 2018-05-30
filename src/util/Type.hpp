@@ -26,6 +26,8 @@
 namespace util {
 namespace type {
 
+// clang::QualType getPointeeType(clang::QualType Type);
+
 clang::QualType removeConst(clang::QualType Type);
 
 clang::QualType getNonConstNonReferenceType(clang::QualType Type);

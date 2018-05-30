@@ -45,6 +45,7 @@ private:
     std::unordered_set<std::string> VisitedDecls_;
 
     std::string QualifiedNameBuffer_;
+    std::unordered_set<std::string> Includes_;
     std::string Output_;
 };
 

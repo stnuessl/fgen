@@ -25,6 +25,17 @@
 namespace util {
 namespace decl {
 
+llvm::StringRef getNameOrDefault(const clang::Decl *Decl,
+                                 llvm::StringRef Default)
+{
+    auto NamedDecl = clang::dyn_cast<clang::NamedDecl>(Decl);
+    if (!NamedDecl)
+        return Default;
+
+    auto Name = NamedDecl->getName();
+    return (Name.empty()) ? Default : Name;
+}
+
 std::string generateUSR(const clang::Decl *Decl)
 {
     llvm::SmallString<128> USRBuffer;

@@ -21,6 +21,8 @@
 #ifndef FGEN_FUNCTIONGENERATOR_HPP_
 #define FGEN_FUNCTIONGENERATOR_HPP_
 
+#include <unordered_set>
+
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
 #include <clang/AST/DeclTemplate.h>
@@ -39,6 +41,7 @@ class FunctionGenerator {
 public:
     /* TODO: unordered_set with needed header files */
     FunctionGenerator(std::string &Buffer,
+                      std::unordered_set<std::string> &Includes,
                       const FGenConfiguration &Configuration);
 
     void write(const clang::FunctionDecl *FunctionDecl);
@@ -49,8 +52,7 @@ private:
     void writeReturnType(const clang::FunctionDecl *FunctionDecl);
     void writeFullName(const clang::FunctionDecl *FunctionDecl);
     void writeParameters(const clang::FunctionDecl *FunctionDecl);
-    void writeParameterName(llvm::ArrayRef<const clang::ParmVarDecl *> Params,
-                            std::size_t Index);
+
     void writeQualifiers(const clang::FunctionDecl *FunctionDecl);
     void writeBody(const clang::FunctionDecl *FunctionDecl);
 
@@ -65,6 +67,7 @@ private:
 
     llvm::raw_string_ostream OStream_;
 
+    std::unordered_set<std::string> *Includes_;
     const FGenConfiguration *Configuration_;
 };
 
