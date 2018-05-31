@@ -51,13 +51,6 @@ public:
 
     static std::unique_ptr<clang::tooling::CompilationDatabase>
     loadFromFile(llvm::StringRef File, std::string &ErrMsg);
-    //
-    //     static std::unique_ptr<clang::tooling::CompilationDatabase>
-    //     loadFromDirectory(llvm::StringRef Directory, std::string &ErrMsg);
-    //
-    //     static std::unique_ptr<clang::tooling::CompilationDatabase>
-    //     autoDetectFromDirectory(llvm::StringRef Directory, std::string
-    //     &ErrMsg);
 
     static std::unique_ptr<clang::tooling::CompilationDatabase>
     autoDetectFromSource(llvm::StringRef SourceFile, std::string &ErrMsg);

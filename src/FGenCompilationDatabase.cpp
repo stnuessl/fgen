@@ -94,6 +94,22 @@ loadJSONDatabase(llvm::Twine &File, std::string &ErrMsg)
 static std::unique_ptr<clang::tooling::CompilationDatabase>
 loadFixedDatabase(llvm::StringRef File, std::string &ErrMsg)
 {
+    llvm::SmallString<256> Buffer;
+
+    /*
+     * Sanitize 'File': The "FixedCompilationDatabase" will assume
+     * the compilation directory is "llvm::sys::path::parent_path(File)".
+     * This is an issue if "File" is just a file name,
+     * e.g. "compile_flags.txt" results in the directory "".
+     */
+    auto Error = llvm::sys::fs::real_path(File, Buffer, true);
+    if (Error) {
+        ErrMsg += Error.message();
+        return nullptr;
+    }
+
+    File = Buffer.str();
+
     return clang::tooling::FixedCompilationDatabase::loadFromFile(File, ErrMsg);
 }
 
@@ -277,26 +293,6 @@ FGenCompilationDatabase::loadFromFile(llvm::StringRef File, std::string &ErrMsg)
 
     return nullptr;
 }
-//
-// std::unique_ptr<clang::tooling::CompilationDatabase>
-// FGenCompilationDatabase::loadFromDirectory(llvm::StringRef Directory,
-//                                            std::string &ErrMsg)
-// {
-//     std::unique_ptr<clang::tooling::CompilationDatabase> JSON;
-//     std::unique_ptr<clang::tooling::CompilationDatabase> Fixed;
-//
-//     if ()
-//
-//
-//     return llvm::make_unique<FGenCompilationDatabase
-// }
-//
-// std::unique_ptr<clang::tooling::CompilationDatabase>
-// FGenCompilationDatabase::autoDetectFromDirectory(llvm::StringRef Directory,
-//                                                  std::string &ErrMsg)
-// {
-//
-// }
 
 std::unique_ptr<clang::tooling::CompilationDatabase>
 FGenCompilationDatabase::autoDetectFromSource(llvm::StringRef SourceFile,
