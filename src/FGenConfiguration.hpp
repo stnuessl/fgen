@@ -34,6 +34,9 @@ public:
     void setImplementReturnValues(bool Value);
     bool implementReturnValues() const;
 
+    void setSkipNamespaces(bool Value);
+    bool skipNamespaces() const;
+
     void setOutputFile(std::string File);
     const std::string &outputFile() const;
 
@@ -43,6 +46,7 @@ public:
 private:
     bool ImplementAccessors_;
     bool ImplementReturnValues_;
+    bool SkipNamespaces_;
 
     std::string OutputFile_;
     std::unordered_set<std::string> Targets_;

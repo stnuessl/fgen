@@ -149,7 +149,7 @@ int main(int argc, const char *argv[])
 
     auto &Files = InputFiles;
     if (Files.empty()) {
-        util::cl::error() << "fgen: no source files specified - done.";
+        util::cl::error() << "fgen: no source files specified - done.\n";
         std::exit(EXIT_FAILURE);
     }
 
@@ -183,7 +183,7 @@ int main(int argc, const char *argv[])
     auto End = std::make_move_iterator(TargetVec.end());
 
     Configuration.setImplementAccessors(true);
-    Configuration.setImplementReturnValues(true);
+    Configuration.setImplementReturnValues(false);
     Configuration.setOutputFile(std::move(OutputFile));
     Configuration.targets().insert(Begin, End);
 

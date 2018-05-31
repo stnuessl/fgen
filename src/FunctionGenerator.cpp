@@ -222,75 +222,9 @@ void FunctionGenerator::writeReturnType(const clang::FunctionDecl *FunctionDecl)
 void FunctionGenerator::writeFullName(
     const clang::FunctionDecl *const FunctionDecl)
 {
-    llvm::SmallVector<const clang::DeclContext *, 8> DeclContextVec;
+    auto SkipNamespaces = Configuration_->skipNamespaces();
 
-    util::decl::getDeclContexts(FunctionDecl, DeclContextVec);
-
-    /* Walk from to top declaration down to 'Decl' */
-
-    for (const auto DeclContext : DeclContextVec) {
-        /* TODO: configuration flag instead of 'true' */
-        if (true && clang::isa<clang::NamespaceDecl>(DeclContext))
-            continue;
-
-        /*
-         * Just writing the Constructor / Destructor Decl to the stream
-         * does not work in case we are dealing with a
-         * 'ClassTemplateDecl': it would result in something like (1)
-         *      class<T>::class<T>()
-         *                ^(1)
-         * which does not compile.
-         * We handle these cases here accordingly.
-         */
-
-        auto FunctionDecl = clang::dyn_cast<clang::FunctionDecl>(DeclContext);
-        auto MethodDecl = clang::dyn_cast<clang::CXXMethodDecl>(DeclContext);
-        auto NamedDecl = clang::dyn_cast<clang::NamedDecl>(DeclContext);
-
-        if (clang::isa<clang::CXXConstructorDecl>(DeclContext))
-            OStream_ << MethodDecl->getParent()->getName();
-        else if (clang::isa<clang::CXXDestructorDecl>(DeclContext))
-            OStream_ << '~' << MethodDecl->getParent()->getName();
-        else if (FunctionDecl)
-            OStream_ << *FunctionDecl;
-        else
-            OStream_ << NamedDecl->getName();
-
-        /*
-         * In a qualified name like
-         *      namespace::class::method
-         *
-         * the 'class' declaration seems to be always a 'RecordDecl' regardless
-         * wether it is templated or not. Here we explicitly check if it is a
-         * template and if it is, we add the template arguments to
-         * the qualified name.
-         */
-        auto RecordDecl = clang::dyn_cast<clang::RecordDecl>(NamedDecl);
-        if (RecordDecl) {
-            auto ClassTemplateDecl = RecordDecl->getDescribedTemplate();
-
-            if (ClassTemplateDecl) {
-                auto TParamList = ClassTemplateDecl->getTemplateParameters();
-
-                OStream_ << "<";
-
-                auto Begin = TParamList->begin();
-                auto End = TParamList->end();
-
-                for (auto It = Begin; It != End; ++It) {
-                    if (It != Begin)
-                        OStream_ << ", ";
-
-                    OStream_ << (*It)->getName();
-                }
-
-                OStream_ << ">";
-            }
-        }
-
-        if (DeclContext != DeclContextVec.back())
-            OStream_ << "::";
-    }
+    util::decl::printFullQualifiedName(FunctionDecl, OStream_, SkipNamespaces);
 }
 
 void FunctionGenerator::writeParameters(const clang::FunctionDecl *FunctionDecl)
@@ -492,11 +426,38 @@ bool FunctionGenerator::tryWriteCXXGetAccessor(
      * definition.
      */
 
-    if (!MethodDecl->isConst())
-        return false;
-
     if (!MethodDecl->parameters().empty())
         return false;
+
+    if (!MethodDecl->isConst()) {
+        /*
+         * Check if there is an const overload of this function.
+         * The following pattern is quite common in C++:
+         *
+         *      class a {
+         *      ...
+         *          b &get();
+         *          const b& get() const;
+         *      ...
+         *      };
+         *
+         * If we detect this pattern, we fill out the
+         * non-const version, too.
+         */
+        auto DeclName = MethodDecl->getDeclName();
+        auto Lookup = MethodDecl->getLookupParent()->lookup(DeclName);
+
+        auto Pred = [](const clang::NamedDecl *Decl) {
+            auto MethodDecl = clang::dyn_cast<clang::CXXMethodDecl>(Decl);
+            if (!MethodDecl)
+                return false;
+
+            return MethodDecl->isConst() && MethodDecl->parameters().empty();
+        };
+
+        if (!std::any_of(Lookup.begin(), Lookup.end(), Pred))
+            return false;
+    }
 
     auto RecordDecl = MethodDecl->getParent();
     auto Name = MethodDecl->getName();

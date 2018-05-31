@@ -27,6 +27,10 @@
 namespace util {
 namespace decl {
 
+void printFullQualifiedName(const clang::NamedDecl *NamedDecl,
+                            llvm::raw_ostream &OStream,
+                            bool SkipNamespaces = false);
+
 llvm::StringRef getNameOrDefault(const clang::Decl *Decl,
                                  llvm::StringRef Default);
 

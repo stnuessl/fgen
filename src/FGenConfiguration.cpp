@@ -40,6 +40,16 @@ bool FGenConfiguration::implementReturnValues() const
     return ImplementReturnValues_;
 }
 
+void FGenConfiguration::setSkipNamespaces(bool Value)
+{
+    SkipNamespaces_ = Value;
+}
+
+bool FGenConfiguration::skipNamespaces() const
+{
+    return SkipNamespaces_;
+}
+
 void FGenConfiguration::setOutputFile(std::string File)
 {
     OutputFile_ = std::move(File);
