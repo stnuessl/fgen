@@ -57,24 +57,19 @@ your code should be save.
 
 * Create empty function definitions from parsing function declarations.
 * Automatically implement accessor functions.
+* Automatically fill in return statement stubs (if possible).
 
 ### What are possible improvements for the future?
 
-* Set Accessors could automatically use move semantics if they are 
-working on a copy.
-* Accessors: better handling of pointers and references.
-* Automatically implement get-accessors for const pointers and const references.
 * Suppress (syntax) errors or at least give an option to do so. 
 There are much better tools out there for this anyway, so a user should be 
 primarily concerned about the generated output of __fgen__.
 * Correctly handle namespaces by putting them before the corresponding 
 function definitions (but keep the option to put them in the function name 
 qualifiers as an alternative.)
-* Option --target" should also be usable for C code.
-* Add "--output" option to specify a file where the function definitions will
-get appended to.
-* Autostub all function return values, either by using an exception, a default
-return value or both. This enables the developer to build his project again.
+* Option --target" should also be usable for C code and namespaces.
+* Add some sort of configuration file to enable the user to set some default
+flags / arguments.
 
 ## Installation
 
@@ -148,7 +143,7 @@ system:
     
 ## Bugs and Bug Reports
 
-You've found a bug in __fgen__ ? That's actually great (at least for me), 
+You've found a bug in __fgen__? That's actually great (at least for me), 
 because this means I can improve my project.
 I really appreciate any bug reports as long as they contain the following 
 information:
