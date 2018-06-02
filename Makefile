@@ -184,7 +184,7 @@ CPPFLAGS	= \
 		-MMD							\
 		-MF $(patsubst %.o,%.d,$@) 				\
 		-MT $@ 							\
-		$(shell llvm-config --cppflags)
+# 		$(shell llvm-config --cppflags)
 
 #
 # Set additional compiler flags
@@ -247,10 +247,10 @@ COLOR_FINISHED	:= $(BOLD_GREEN)
 print 		= @printf "$(1)$(2)$(DEFAULT_COLOR)\n"
 md5sum 		= $$(md5sum $(1) | cut -f1 -d " ")
 
-release: CPPFLAGS	+= -DNDEBUG
-release: CFLAGS 	+= -O2 -flto
-release: CXXFLAGS 	+= -O2 -flto
-release: LDFLAGS 	+= -O2 -flto
+# release: CPPFLAGS	+= -DNDEBUG
+release: CFLAGS 	+= -O3 -flto
+release: CXXFLAGS 	+= -O3 -flto
+release: LDFLAGS 	+= -O3 -flto
 release: $(TARGET)
 
 debug: CFLAGS		+= -Og -g2
