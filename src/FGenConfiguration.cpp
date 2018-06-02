@@ -30,14 +30,14 @@ bool FGenConfiguration::implementAccessors() const
     return ImplementAccessors_;
 }
 
-void FGenConfiguration::setImplementReturnValues(bool Value)
+void FGenConfiguration::setImplementStubs(bool Value)
 {
-    ImplementReturnValues_ = Value;
+    ImplementStubs_ = Value;
 }
 
-bool FGenConfiguration::implementReturnValues() const
+bool FGenConfiguration::implementStubs() const
 {
-    return ImplementReturnValues_;
+    return ImplementStubs_;
 }
 
 void FGenConfiguration::setSkipNamespaces(bool Value)

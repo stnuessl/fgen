@@ -31,8 +31,8 @@ public:
     void setImplementAccessors(bool Value);
     bool implementAccessors() const;
 
-    void setImplementReturnValues(bool Value);
-    bool implementReturnValues() const;
+    void setImplementStubs(bool Value);
+    bool implementStubs() const;
 
     void setSkipNamespaces(bool Value);
     bool skipNamespaces() const;
@@ -45,7 +45,7 @@ public:
 
 private:
     bool ImplementAccessors_;
-    bool ImplementReturnValues_;
+    bool ImplementStubs_;
     bool SkipNamespaces_;
 
     std::string OutputFile_;

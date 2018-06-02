@@ -20,9 +20,10 @@
 
 #include <llvm/Support/raw_ostream.h>
 
+#include <util/CommandLine.hpp>
+
 #include <FGenAction.hpp>
 #include <FGenVisitor.hpp>
-#include <util/CommandLine.hpp>
 
 class FGenASTConsumer : public clang::ASTConsumer {
 public:
@@ -78,6 +79,9 @@ void FGenAction::setConfiguration(
 std::unique_ptr<clang::ASTConsumer>
 FGenAction::CreateASTConsumer(clang::CompilerInstance &CI, llvm::StringRef File)
 {
+    (void) CI;
+    (void) File;
+
     auto Consumer = llvm::make_unique<FGenASTConsumer>();
     Consumer->setConfiguration(Configuration_);
 

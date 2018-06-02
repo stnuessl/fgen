@@ -264,16 +264,6 @@ void FunctionGenerator::writeParameters(const clang::FunctionDecl *FunctionDecl)
     OStream_ << ")";
 }
 
-// void FunctionGenerator::writeParameterName(
-//     llvm::ArrayRef<const clang::ParmVarDecl *> Params, std::size_t Index)
-// {
-//     auto Name = Params[Index]->getName();
-//     if (!Name.empty())
-//         OStream_ << Name;
-//     else
-//         OStream_ << "arg" << Index + 1;
-// }
-
 void FunctionGenerator::writeQualifiers(const clang::FunctionDecl *FunctionDecl)
 {
     auto MethodDecl = clang::dyn_cast<clang::CXXMethodDecl>(FunctionDecl);
@@ -295,7 +285,7 @@ void FunctionGenerator::writeBody(const clang::FunctionDecl *FunctionDecl)
 
     auto ReturnType = FunctionDecl->getReturnType();
 
-    if (Configuration_->implementReturnValues() && !ReturnType->isVoidType()) {
+    if (Configuration_->implementStubs() && !ReturnType->isVoidType()) {
 
         if (tryWriteReturnStatement(FunctionDecl))
             return;
@@ -309,7 +299,12 @@ bool FunctionGenerator::tryWriteReturnStatement(
 {
     auto ReturnType = FunctionDecl->getReturnType();
 
-    if (ReturnType->isPointerType() || ReturnType->isBuiltinType()) {
+    if (ReturnType->isBooleanType()) {
+        OStream_ << "{\n    return false;\n}\n\n";
+        return true;
+    }
+
+    if (ReturnType->isIntegerType() || ReturnType->isPointerType()) {
         OStream_ << "{\n    return 0;\n}\n\n";
         return true;
     }

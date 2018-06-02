@@ -33,12 +33,14 @@
 
 /* clang-format off */
 
+
+/* TODO: different category for accessors and stubs? */
 static llvm::cl::OptionCategory FGenOptions("Function Generating Options");
 
 static llvm::cl::list<std::string> TargetVec(
     "target",
     llvm::cl::desc(
-        "Generate function bodys for [target...]. [target...] must be\n"
+        "Generate function bodys for [target...]. A target must be\n"
         "fully qualified identifiers, e.g. \"my_namespace::my_class\"."
     ),
     llvm::cl::value_desc("target"),
@@ -49,26 +51,28 @@ static llvm::cl::list<std::string> TargetVec(
 static llvm::cl::opt<bool> ImplementAccessors(
     "accessors",
     llvm::cl::desc(
-        "Try to automatically implement accessor functions."
+        "Try to automatically detect accessor function\n"
+        "declarations and implement them."
     ),
     llvm::cl::cat(FGenOptions),
     llvm::cl::init(false)
 );
 
-static llvm::cl::opt<bool> ImplementReturnValues(
-    "return-values",
+static llvm::cl::opt<bool> ImplementStubs(
+    "stubs",
     llvm::cl::desc(
-        "Try to automatically implement accessor functions."
+        "Try to automatically implement the generated functions \n"
+        "as function stubs."
     ),
     llvm::cl::cat(FGenOptions),
     llvm::cl::init(false)
 );
 
 static llvm::cl::opt<bool> IgnoreNamespaces(
-    "ignore-namespaces",
+    "skip-namespaces",
     llvm::cl::desc(
-        "Do not write namespaces in the function qualifiers when writing\n"
-        "function definitions."
+        "Do not include the names of namespaces in the function\n"
+        "qualifiers when generating function definitions."
     ),
     llvm::cl::cat(FGenOptions),
     llvm::cl::init(false)
@@ -96,6 +100,12 @@ static llvm::cl::opt<std::string> OutputFile(
     ),
     llvm::cl::value_desc("file"),
     llvm::cl::cat(FGenOptions)
+);
+
+static llvm::cl::alias OutputFileAlias(
+    "o",
+    llvm::cl::desc("Alias for --output"),
+    llvm::cl::aliasopt(OutputFile)
 );
 
 static llvm::cl::list<std::string> InputFiles(
@@ -183,7 +193,7 @@ int main(int argc, const char *argv[])
     auto End = std::make_move_iterator(TargetVec.end());
 
     Configuration.setImplementAccessors(true);
-    Configuration.setImplementReturnValues(false);
+    Configuration.setImplementStubs(true);
     Configuration.setOutputFile(std::move(OutputFile));
     Configuration.targets().insert(Begin, End);
 
