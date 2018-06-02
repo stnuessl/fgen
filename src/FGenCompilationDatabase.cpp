@@ -158,7 +158,8 @@ FGenCompilationDatabase::FGenCompilationDatabase(
     /*
      * We need to always have the fixed compilation database as a
      * fallback option. Try to create one from the JSON compilation database.
-     * If this does not work we use a very basic fallback.
+     * If this does not work we use a very basic fallback fixed compilation
+     * database.
      */
 
     if (!JSONDatabase_) {
@@ -173,13 +174,39 @@ FGenCompilationDatabase::FGenCompilationDatabase(
     }
 
     /*
+     * Search the compile commands for an compile command with an
+     * "-c" flag, as such a command should have all the information needed
+     * to parse the source files. If we cannot find such a compile
+     * command we use the first one as a fallback.
+     *
+     * Obviously, it could be that some source files
+     * need different compilation flags, but we cannot know that anyway
+     * until actually parsing them. We do not know if this will
+     * be the correct one, or if there even is a correct one, but this
+     * will be our best guess.
+     */
+    auto CCBegin = CompileCommands.begin();
+    auto CCEnd = CompileCommands.end();
+
+    auto IsCompileCommand = [](const clang::tooling::CompileCommand &Command) {
+        auto Begin = Command.CommandLine.begin();
+        auto End = Command.CommandLine.end();
+        auto Pred = [](const std::string &Arg) { return Arg == "-c"; };
+
+        return std::any_of(Begin, End, Pred);
+    };
+
+    auto It = std::find_if(CCBegin, CCEnd, IsCompileCommand);
+    if (It == CCEnd)
+        It = CCBegin;
+    /*
      * Take the first entry of the JSON compilation database and
      * use its compile command as the basis for the fixed compilation
      * database.
      */
-    auto &Filename = CompileCommands[0].Filename;
-    auto &Directory = CompileCommands[0].Directory;
-    auto &CommandLine = CompileCommands[0].CommandLine;
+    auto &Filename = It->Filename;
+    auto &Directory = It->Directory;
+    auto &CommandLine = It->CommandLine;
 
     /*
      * Remove the invoked program from the command as

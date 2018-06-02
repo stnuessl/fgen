@@ -39,7 +39,6 @@
 
 class FunctionGenerator {
 public:
-    /* TODO: unordered_set with needed header files */
     FunctionGenerator(std::string &Buffer,
                       std::unordered_set<std::string> &Includes,
                       const FGenConfiguration &Configuration);
