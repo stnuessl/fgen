@@ -267,8 +267,22 @@ void FunctionGenerator::writeParameters(const clang::FunctionDecl *FunctionDecl)
 void FunctionGenerator::writeQualifiers(const clang::FunctionDecl *FunctionDecl)
 {
     auto MethodDecl = clang::dyn_cast<clang::CXXMethodDecl>(FunctionDecl);
-    if (MethodDecl && MethodDecl->isConst())
-        OStream_ << " const";
+    if (MethodDecl) {
+        if (MethodDecl->isConst())
+            OStream_ << " const";
+
+        switch (MethodDecl->getRefQualifier()) {
+        case clang::RefQualifierKind::RQ_LValue:
+            OStream_ << " &";
+            break;
+        case clang::RefQualifierKind::RQ_RValue:
+            OStream_ << " &&";
+            break;
+        case clang::RefQualifierKind::RQ_None:
+        default:
+            break;
+        }
+    }
 
     OStream_ << "\n";
 }
@@ -324,26 +338,44 @@ bool FunctionGenerator::tryWriteReturnStatement(
     }
 
     if (ReturnType->isReferenceType()) {
-        auto MethodDecl = clang::dyn_cast<clang::CXXMethodDecl>(FunctionDecl);
-        if (MethodDecl) {
+        auto NonRefType = ReturnType.getNonReferenceType();
+        auto &Policy = FunctionDecl->getASTContext().getPrintingPolicy();
+
+        bool IsBuiltIn = NonRefType->isBuiltinType();
+        if (IsBuiltIn || util::type::hasDefaultConstructor(NonRefType)) {
             /*
-             * TODO: comments and extra class or functions for
-             * extracting fields of records for assignment
+             * Declare a static variable and return it, if the type
+             * is default constructible.
              */
-            auto RecordDecl = MethodDecl->getParent();
-            auto Name = MethodDecl->getName();
+            OStream_ << "{\n    static ";
+            NonRefType.print(OStream_, Policy);
+            OStream_ << " stub_dummy_;\n\n    return stub_dummy_;\n}\n\n";
 
-            auto TypePred = [ReturnType](clang::QualType FieldType) {
-                return util::type::isReturnAssignmentOk(ReturnType, FieldType);
-            };
-
-            auto FieldDecl = bestFieldDeclMatch(RecordDecl, Name, TypePred);
-            if (FieldDecl) {
-                OStream_ << "{\n    return " << FieldDecl->getName()
-                         << ";\n}\n\n";
-                return true;
-            }
+            return true;
         }
+
+        //         auto MethodDecl =
+        //         clang::dyn_cast<clang::CXXMethodDecl>(FunctionDecl); if
+        //         (MethodDecl) {
+        //             /*
+        //              * TODO: comments and extra class or functions for
+        //              * extracting fields of records for assignment
+        //              */
+        //             auto RecordDecl = MethodDecl->getParent();
+        //             auto Name = MethodDecl->getName();
+        //
+        //             auto TypePred = [ReturnType](clang::QualType FieldType) {
+        //                 return util::type::isReturnAssignmentOk(ReturnType,
+        //                 FieldType);
+        //             };
+        //
+        //             auto FieldDecl = bestFieldDeclMatch(RecordDecl, Name,
+        //             TypePred); if (FieldDecl) {
+        //                 OStream_ << "{\n    return " << FieldDecl->getName()
+        //                          << ";\n}\n\n";
+        //                 return true;
+        //             }
+        //         }
     }
 
     return false;
@@ -466,7 +498,22 @@ bool FunctionGenerator::tryWriteCXXGetAccessor(
     if (!FieldDecl)
         return false;
 
-    OStream_ << "{\n    return " << FieldDecl->getName() << ";\n}\n\n";
+    auto RefQualifier = MethodDecl->getRefQualifier();
+    auto IsRValue = RefQualifier == clang::RefQualifierKind::RQ_RValue;
+
+    bool UseMove = IsRValue && useMoveAssignment(FieldDecl->getType());
+
+    OStream_ << "{\n    return ";
+
+    if (UseMove)
+        OStream_ << "std::move(";
+
+    OStream_ << FieldDecl->getName();
+
+    if (UseMove)
+        OStream_ << ")";
+
+    OStream_ << ";\n}\n\n";
 
     return true;
 }
@@ -554,22 +601,14 @@ bool FunctionGenerator::tryWriteCXXSetAccessor(
     OStream_ << "{\n    " << FieldDecl->getName() << " = ";
 
     /* Try to use the move assignment operator if available */
-    bool UseMoveAssignment = false;
-    if (util::type::hasMoveAssignment(RHSType)) {
-        std::unordered_set<std::string>::iterator It;
-        bool Ok;
+    bool UseMove = useMoveAssignment(RHSType);
 
-        std::tie(It, Ok) = Includes_->insert("#include <utility>");
-
-        UseMoveAssignment = Ok || It != Includes_->end();
-    }
-
-    if (UseMoveAssignment)
+    if (UseMove)
         OStream_ << "std::move(";
 
     OStream_ << util::decl::getNameOrDefault(Parameters[0], "arg1");
 
-    if (UseMoveAssignment)
+    if (UseMove)
         OStream_ << ")";
 
     OStream_ << ";\n}\n\n";
@@ -588,4 +627,25 @@ bool FunctionGenerator::tryWriteSetAccessor(
         return tryWriteCXXSetAccessor(MethodDecl);
 
     return tryWriteCSetAccessor(FunctionDecl);
+}
+
+bool FunctionGenerator::useMoveAssignment(clang::QualType Type)
+{
+    if (!Configuration_->allowMove())
+        return false;
+
+    if (!util::type::hasMoveAssignment(Type))
+        return false;
+
+    return addInclude("#include <utility>");
+}
+
+bool FunctionGenerator::addInclude(std::string Include)
+{
+    std::unordered_set<std::string>::iterator It;
+    bool Ok;
+
+    std::tie(It, Ok) = Includes_->insert(std::move(Include));
+
+    return Ok || It != Includes_->end();
 }

@@ -64,6 +64,9 @@ private:
     bool tryWriteCSetAccessor(const clang::FunctionDecl *FunctionDecl);
     bool tryWriteCXXSetAccessor(const clang::CXXMethodDecl *MethodDecl);
 
+    bool useMoveAssignment(clang::QualType Type);
+    bool addInclude(std::string Include);
+
     llvm::raw_string_ostream OStream_;
 
     std::unordered_set<std::string> *Includes_;

@@ -50,6 +50,16 @@ bool FGenConfiguration::skipNamespaces() const
     return SkipNamespaces_;
 }
 
+void FGenConfiguration::setAllowMove(bool Value)
+{
+    AllowMove_ = Value;
+}
+
+bool FGenConfiguration::allowMove() const
+{
+    return AllowMove_;
+}
+
 void FGenConfiguration::setOutputFile(std::string File)
 {
     OutputFile_ = std::move(File);

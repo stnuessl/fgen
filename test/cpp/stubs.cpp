@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2018  Steffen Nüssle
- * fgen - function generator
+ * fgen - method generator
  *
  * This file is part of fgen.
  *
@@ -18,26 +18,50 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef FGEN_UTIL_TYPE_HPP_
-#define FGEN_UTIL_TYPE_HPP_
+namespace n {
+    
+class default_constructor {
+public:
+    default_constructor() = default;
+};
 
-#include <clang/AST/Type.h>
-
-namespace util {
-namespace type {
-
-clang::QualType removeConst(clang::QualType Type);
-
-clang::QualType getNonConstNonReferenceType(clang::QualType Type);
-
-bool isReturnAssignmentOk(clang::QualType Type1, clang::QualType Type2);
-
-bool isVariableAssignmentOk(clang::QualType Type1, clang::QualType Type2);
-
-bool hasDefaultConstructor(const clang::QualType Type);
-
-bool hasMoveAssignment(const clang::QualType Type);
-}
 }
 
-#endif /* FGEN_UTIL_TYPE_HPP_ */
+class deleted_constructor {
+public:
+    deleted_constructor() = delete;
+};
+
+bool &ref_bool();
+
+short &ref_short();
+
+int &ref_int();
+
+long &ref_long();
+
+float &ref_float();
+
+double &ref_double();
+
+n::default_constructor &ref_default_constructor();
+
+deleted_constructor &ref_deleted_constructor();
+
+bool get_bool();
+
+short get_short();
+
+int get_int();
+
+long get_long();
+
+float get_float();
+
+double get_double();
+
+void *get_ptr();
+
+n::default_constructor get_fdefault_constructor();
+
+deleted_constructor get_fdeleted_constructor();

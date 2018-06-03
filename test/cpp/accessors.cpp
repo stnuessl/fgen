@@ -95,3 +95,17 @@ private:
     T a_, b_, c_;
 };
 
+class c6 {
+public:
+    void setVal(c5<int> val);
+    void setVal(c5<int> *val);
+    void setVal(c5<int> &val);
+    
+    c5<int> get_val() const &;
+    c5<int> get_val() const &&;
+    
+    c5<int> &val();
+    const c5<int> &val() const;
+private:
+    c5<int> val_;
+};

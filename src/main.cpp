@@ -192,6 +192,7 @@ int main(int argc, const char *argv[])
     auto Begin = std::make_move_iterator(TargetVec.begin());
     auto End = std::make_move_iterator(TargetVec.end());
 
+    Configuration.setAllowMove(true);
     Configuration.setImplementAccessors(true);
     Configuration.setImplementStubs(true);
     Configuration.setOutputFile(std::move(OutputFile));

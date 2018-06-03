@@ -96,8 +96,17 @@ bool hasDefaultConstructor(const clang::QualType Type)
         return false;
 
     auto Decl = clang::dyn_cast<clang::CXXRecordDecl>(RecordType->getDecl());
+    if (!Decl)
+        return false;
 
-    return Decl && Decl->hasDefaultConstructor();
+    auto Begin = Decl->ctor_begin();
+    auto End = Decl->ctor_end();
+
+    auto Pred = [](const clang::CXXConstructorDecl *CtorDecl) {
+        return CtorDecl->isDefaultConstructor() && !CtorDecl->isDeleted();
+    };
+
+    return std::any_of(Begin, End, Pred);
 }
 
 bool hasMoveAssignment(const clang::QualType Type)
@@ -107,8 +116,17 @@ bool hasMoveAssignment(const clang::QualType Type)
         return false;
 
     auto Decl = clang::dyn_cast<clang::CXXRecordDecl>(RecordType->getDecl());
+    if (!Decl)
+        return false;
 
-    return Decl && Decl->hasMoveAssignment();
+    auto Begin = Decl->method_begin();
+    auto End = Decl->method_end();
+
+    auto Pred = [](const clang::CXXMethodDecl *MDecl) {
+        return MDecl->isMoveAssignmentOperator() && !MDecl->isDeleted();
+    };
+
+    return std::any_of(Begin, End, Pred);
 }
 }
 }

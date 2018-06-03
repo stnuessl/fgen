@@ -70,6 +70,10 @@ qualifiers as an alternative.)
 * Option --target" should also be usable for C code and namespaces.
 * Add some sort of configuration file to enable the user to set some default
 flags / arguments.
+* When run on source files, check for missing function bodies and create them.
+Would be useful if only a few functions have been newly added to the 
+corresponding header.
+* Auto implement CXXConversionDecls
 
 ## Installation
 

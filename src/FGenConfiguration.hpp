@@ -28,6 +28,9 @@ class FGenConfiguration {
 public:
     FGenConfiguration() = default;
 
+    void setAllowMove(bool Value);
+    bool allowMove() const;
+
     void setImplementAccessors(bool Value);
     bool implementAccessors() const;
 
@@ -44,6 +47,7 @@ public:
     const std::unordered_set<std::string> &targets() const;
 
 private:
+    bool AllowMove_;
     bool ImplementAccessors_;
     bool ImplementStubs_;
     bool SkipNamespaces_;
