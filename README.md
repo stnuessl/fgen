@@ -57,7 +57,7 @@ your code should be save.
 
 * Create empty function definitions from parsing function declarations.
 * Automatically implement accessor functions.
-* Automatically fill in return statement stubs (if possible).
+* Automatically fill in return stubs (if possible).
 
 ### What are possible improvements for the future?
 
@@ -74,6 +74,8 @@ flags / arguments.
 Would be useful if only a few functions have been newly added to the 
 corresponding header.
 * Auto implement CXXConversionDecls
+* Setters who automatically can assign from pointers and references to their
+non-pointer and non-references counterpart.
 
 ## Installation
 
