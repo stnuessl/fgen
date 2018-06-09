@@ -34,8 +34,9 @@
 /* clang-format off */
 
 
-/* TODO: different category for accessors and stubs? */
-static llvm::cl::OptionCategory FGenOptions("Function Generating Options");
+static llvm::cl::OptionCategory GeneralOptions("1. General");
+static llvm::cl::OptionCategory GeneratorOptions("2. Generator Options");
+
 
 static llvm::cl::list<std::string> TargetVec(
     "target",
@@ -45,67 +46,79 @@ static llvm::cl::list<std::string> TargetVec(
     ),
     llvm::cl::value_desc("target"),
     llvm::cl::CommaSeparated,
-    llvm::cl::cat(FGenOptions)
+    llvm::cl::cat(GeneralOptions)
 );
 
-static llvm::cl::opt<bool> ImplementAccessors(
-    "accessors",
+static llvm::cl::opt<bool> FlagAccessors(
+    "faccessors",
     llvm::cl::desc(
-        "Try to automatically detect accessor function\n"
-        "declarations and implement them."
+        "Try to automatically implement accessor functions.\n"
     ),
-    llvm::cl::cat(FGenOptions),
-    llvm::cl::init(false)
+    llvm::cl::cat(GeneratorOptions),
+    llvm::cl::ValueOptional,
+    llvm::cl::init(true)
 );
 
-static llvm::cl::opt<bool> ImplementStubs(
-    "stubs",
+static llvm::cl::opt<bool> FlagConversions(
+    "fconversions",
     llvm::cl::desc(
-        "Try to automatically implement the generated functions \n"
-        "as function stubs."
+        "Try to automatically implement C++ conversion operators."
     ),
-    llvm::cl::cat(FGenOptions),
-    llvm::cl::init(false)
+    llvm::cl::cat(GeneratorOptions),
+    llvm::cl::ValueOptional,
+    llvm::cl::init(true)
 );
 
-static llvm::cl::opt<bool> IgnoreNamespaces(
-    "skip-namespaces",
+static llvm::cl::opt<bool> FlagAllowMove(
+    "fmove",
     llvm::cl::desc(
-        "Do not include the names of namespaces in the function\n"
-        "qualifiers when generating function definitions."
+        "Automatically use the C++ move assignment if possible."
     ),
-    llvm::cl::cat(FGenOptions),
-    llvm::cl::init(false)
+    llvm::cl::cat(GeneratorOptions),
+    llvm::cl::ValueOptional,
+    llvm::cl::init(true)
+);
+
+static llvm::cl::opt<bool> FlagStubs(
+    "fstubs",
+    llvm::cl::desc(
+        "Try to automatically implement function stubs\n"
+        "which are ready to be compiled."
+    ),
+    llvm::cl::cat(GeneratorOptions),
+    llvm::cl::init(true)
+);
+
+static llvm::cl::opt<bool> FlagNamespaces(
+    "fnamespaces",
+    llvm::cl::desc(
+        "Do not include namespaces in function qualifiers\n"
+        "when generating function definitions."
+    ),
+    llvm::cl::cat(GeneratorOptions),
+    llvm::cl::ValueOptional,                    
+    llvm::cl::init(true)
 );
 
 static llvm::cl::opt<std::string> DatabasePath(
     "compilation-database",
     llvm::cl::desc(
         "Specifies the project's compilation database file.\n"
-        "Usually it is named \"compile_commands.json\".\n"
-        "Alternatively, a \"compile_flags.txt\" will suffice, too.\n"
-        "If not specified fgen will automatically search all\n"
-        "parent directories of the first specified source file for such a\n"
-        "compilation database."
+        "If no file is specified, fgen attempts to automatically\n"
+        "find one."
     ),
     llvm::cl::value_desc("file"),
-    llvm::cl::cat(FGenOptions)
+    llvm::cl::cat(GeneralOptions)
 );
 
 static llvm::cl::opt<std::string> OutputFile(
-    "output",
+    "o",
     llvm::cl::desc(
         "Specifies the file to which the generated functions "
         "will be written to."
     ),
     llvm::cl::value_desc("file"),
-    llvm::cl::cat(FGenOptions)
-);
-
-static llvm::cl::alias OutputFileAlias(
-    "o",
-    llvm::cl::desc("Alias for --output"),
-    llvm::cl::aliasopt(OutputFile)
+    llvm::cl::cat(GeneralOptions)
 );
 
 static llvm::cl::list<std::string> InputFiles(
@@ -118,8 +131,8 @@ static llvm::cl::list<std::string> InputFiles(
 /* clang-format on */
 
 #define FGEN_VERSION_MAJOR "0"
-#define FGEN_VERSION_MINOR "0"
-#define FGEN_VERSION_PATCH "1"
+#define FGEN_VERSION_MINOR "1"
+#define FGEN_VERSION_PATCH "0"
 #define FGEN_VERSION_INFO                                                      \
     FGEN_VERSION_MAJOR "." FGEN_VERSION_MINOR "." FGEN_VERSION_PATCH
 
@@ -136,7 +149,7 @@ int main(int argc, const char *argv[])
     std::unique_ptr<clang::tooling::CompilationDatabase> Database;
     std::string ErrMsg;
 
-    llvm::cl::HideUnrelatedOptions(FGenOptions);
+    llvm::cl::HideUnrelatedOptions({&GeneralOptions, &GeneratorOptions});
 
     const auto print_version = [](llvm::raw_ostream &OS) {
         OS << "fgen [v" << FGEN_VERSION_INFO << "] - " << FGEN_HOMEPAGE_URL
@@ -192,9 +205,11 @@ int main(int argc, const char *argv[])
     auto Begin = std::make_move_iterator(TargetVec.begin());
     auto End = std::make_move_iterator(TargetVec.end());
 
-    Configuration.setAllowMove(true);
-    Configuration.setImplementAccessors(true);
-    Configuration.setImplementStubs(true);
+    Configuration.setAllowMove(FlagAllowMove);
+    Configuration.setImplementAccessors(FlagAccessors);
+    Configuration.setImplemenConversions(FlagConversions);
+    Configuration.setImplementStubs(FlagStubs);
+    Configuration.setWriteNamespaces(FlagNamespaces);
     Configuration.setOutputFile(std::move(OutputFile));
     Configuration.targets().insert(Begin, End);
 

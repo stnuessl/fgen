@@ -82,16 +82,20 @@ static const clang::FieldDecl *bestFieldDeclMatch(
     if (RecordDecl->field_empty())
         return nullptr;
 
-    auto MaxEditDistance = Name.size();
-
     Name = extractRelevantSection(Name);
+    auto MaxEditDistance = Name.size();
     auto NameSize = static_cast<int>(Name.size());
 
     const clang::FieldDecl *BestMatch = nullptr;
     unsigned int BestEditDistance = MaxEditDistance;
 
     for (const auto &FieldDecl : RecordDecl->fields()) {
-        if (!PredFunc(FieldDecl->getType()))
+        auto FieldType = FieldDecl->getType();
+
+        if (util::decl::isSingleBit(FieldDecl))
+            FieldType = FieldDecl->getASTContext().BoolTy;
+
+        if (!PredFunc(FieldType))
             continue;
 
         auto FieldName = extractRelevantSection(FieldDecl->getName());
@@ -115,6 +119,33 @@ static const clang::FieldDecl *bestFieldDeclMatch(
     }
 
     return BestMatch;
+}
+
+template<typename Pred>
+static const clang::FieldDecl *
+bestFieldDeclMatch(const clang::RecordDecl *RecordDecl, Pred &&PredFunc)
+{
+    /*
+     * If there is exactly one field declaration in "RecordDecl" which
+     * fullfills the type predicate, we will return it.
+     */
+    const clang::FieldDecl *Match = nullptr;
+
+    for (const auto &FieldDecl : RecordDecl->fields()) {
+        auto FieldType = FieldDecl->getType();
+
+        if (util::decl::isSingleBit(FieldDecl))
+            FieldType = FieldDecl->getASTContext().BoolTy;
+
+        if (PredFunc(FieldType)) {
+            if (Match)
+                return nullptr;
+
+            Match = FieldDecl;
+        }
+    }
+
+    return Match;
 }
 
 FunctionGenerator::FunctionGenerator(std::string &Buffer,
@@ -197,11 +228,18 @@ void FunctionGenerator::writeTemplateParameters(
 
 void FunctionGenerator::writeReturnType(const clang::FunctionDecl *FunctionDecl)
 {
-    if (clang::isa<clang::CXXConstructorDecl>(FunctionDecl))
+    /*
+     * For some types of function definitions the return type
+     * does not get written.
+     */
+    switch (FunctionDecl->getKind()) {
+    case clang::Decl::CXXConstructor:
+    case clang::Decl::CXXDestructor:
+    case clang::Decl::CXXConversion:
         return;
-
-    if (clang::isa<clang::CXXDestructorDecl>(FunctionDecl))
-        return;
+    default:
+        break;
+    }
 
     auto QualType = FunctionDecl->getReturnType();
     auto &PrintingPolicy = FunctionDecl->getASTContext().getPrintingPolicy();
@@ -222,9 +260,9 @@ void FunctionGenerator::writeReturnType(const clang::FunctionDecl *FunctionDecl)
 void FunctionGenerator::writeFullName(
     const clang::FunctionDecl *const FunctionDecl)
 {
-    auto SkipNamespaces = Configuration_->skipNamespaces();
+    auto Namespaces = Configuration_->writeNamespaces();
 
-    util::decl::printFullQualifiedName(FunctionDecl, OStream_, SkipNamespaces);
+    util::decl::printFullQualifiedName(FunctionDecl, OStream_, Namespaces);
 }
 
 void FunctionGenerator::writeParameters(const clang::FunctionDecl *FunctionDecl)
@@ -297,10 +335,12 @@ void FunctionGenerator::writeBody(const clang::FunctionDecl *FunctionDecl)
             return;
     }
 
-    auto ReturnType = FunctionDecl->getReturnType();
+    if (Configuration_->implementConversions()) {
+        if (tryWriteConversionStatement(FunctionDecl))
+            return;
+    }
 
-    if (Configuration_->implementStubs() && !ReturnType->isVoidType()) {
-
+    if (Configuration_->implementStubs()) {
         if (tryWriteReturnStatement(FunctionDecl))
             return;
     }
@@ -308,10 +348,36 @@ void FunctionGenerator::writeBody(const clang::FunctionDecl *FunctionDecl)
     OStream_ << "{\n\n}\n\n";
 }
 
+bool FunctionGenerator::tryWriteConversionStatement(
+    const clang::FunctionDecl *FunctionDecl)
+{
+    auto ConvDecl = clang::dyn_cast<clang::CXXConversionDecl>(FunctionDecl);
+    if (!ConvDecl)
+        return false;
+
+    auto RecordDecl = ConvDecl->getParent();
+    auto ReturnType = ConvDecl->getReturnType();
+
+    auto TypePred = [ReturnType](clang::QualType FieldType) {
+        return util::type::isReturnAssignmentOk(ReturnType, FieldType);
+    };
+
+    auto TypeDecl = bestFieldDeclMatch(RecordDecl, TypePred);
+    if (!TypeDecl)
+        return false;
+
+    OStream_ << "{\n    return " << TypeDecl->getName() << ";\n}\n\n";
+
+    return true;
+}
+
 bool FunctionGenerator::tryWriteReturnStatement(
     const clang::FunctionDecl *FunctionDecl)
 {
     auto ReturnType = FunctionDecl->getReturnType();
+
+    if (ReturnType->isVoidType())
+        return false;
 
     if (ReturnType->isBooleanType()) {
         OStream_ << "{\n    return false;\n}\n\n";
@@ -472,7 +538,7 @@ bool FunctionGenerator::tryWriteCXXGetAccessor(
          * non-const version, too.
          */
         auto DeclName = MethodDecl->getDeclName();
-        auto Lookup = MethodDecl->getLookupParent()->lookup(DeclName);
+        auto Candidates = MethodDecl->getLookupParent()->lookup(DeclName);
 
         auto Pred = [](const clang::NamedDecl *Decl) {
             auto MethodDecl = clang::dyn_cast<clang::CXXMethodDecl>(Decl);
@@ -482,7 +548,7 @@ bool FunctionGenerator::tryWriteCXXGetAccessor(
             return MethodDecl->isConst() && MethodDecl->parameters().empty();
         };
 
-        if (!std::any_of(Lookup.begin(), Lookup.end(), Pred))
+        if (std::none_of(Candidates.begin(), Candidates.end(), Pred))
             return false;
     }
 
@@ -499,7 +565,7 @@ bool FunctionGenerator::tryWriteCXXGetAccessor(
         return false;
 
     auto RefQualifier = MethodDecl->getRefQualifier();
-    auto IsRValue = RefQualifier == clang::RefQualifierKind::RQ_RValue;
+    auto IsRValue = (RefQualifier == clang::RefQualifierKind::RQ_RValue);
 
     bool UseMove = IsRValue && useMoveAssignment(FieldDecl->getType());
 

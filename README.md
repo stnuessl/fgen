@@ -141,9 +141,28 @@ system:
 
 ## Usage
 
+An overview over all __fgen__ options is available with:
+
 ```
-    $ fgen --help
+    $ fgen -help
 ```
+
+As of now __fgen__ is run with some options enabled by default. This means
+that the following two command are equal:
+
+```
+    $ fgen [<file> ...]
+    $ fgen -faccessors -fconversions -fmove -fnamespaces -fstubs [<file> ...]
+```
+
+To turn an option off the arguments have to passed like this:
+
+```
+    $ fgen -faccessors=false -fconversions=false [...] [<file> ...]
+```
+
+The strings __"true", "TRUE", "True", "1", "false", "FALSE", "False", "0"__
+are supported for boolean arguments.
 
 ## Troubleshooting
     

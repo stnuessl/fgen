@@ -27,9 +27,11 @@
 namespace util {
 namespace decl {
 
+bool isSingleBit(const clang::FieldDecl *Decl);
+
 void printFullQualifiedName(const clang::NamedDecl *NamedDecl,
                             llvm::raw_ostream &OStream,
-                            bool SkipNamespaces = false);
+                            bool WriteNamespaces = true);
 
 llvm::StringRef getNameOrDefault(const clang::Decl *Decl,
                                  llvm::StringRef Default);

@@ -55,6 +55,7 @@ private:
     void writeQualifiers(const clang::FunctionDecl *FunctionDecl);
     void writeBody(const clang::FunctionDecl *FunctionDecl);
 
+    bool tryWriteConversionStatement(const clang::FunctionDecl *FunctionDecl);
     bool tryWriteReturnStatement(const clang::FunctionDecl *FunctionDecl);
     bool tryWriteGetAccessor(const clang::FunctionDecl *FunctionDecl);
     bool tryWriteCGetAccessor(const clang::FunctionDecl *FunctionDecl);

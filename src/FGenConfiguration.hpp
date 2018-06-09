@@ -34,11 +34,14 @@ public:
     void setImplementAccessors(bool Value);
     bool implementAccessors() const;
 
+    void setImplemenConversions(bool Value);
+    bool implementConversions() const;
+
     void setImplementStubs(bool Value);
     bool implementStubs() const;
 
-    void setSkipNamespaces(bool Value);
-    bool skipNamespaces() const;
+    void setWriteNamespaces(bool Value);
+    bool writeNamespaces() const;
 
     void setOutputFile(std::string File);
     const std::string &outputFile() const;
@@ -47,10 +50,11 @@ public:
     const std::unordered_set<std::string> &targets() const;
 
 private:
-    bool AllowMove_;
-    bool ImplementAccessors_;
-    bool ImplementStubs_;
-    bool SkipNamespaces_;
+    unsigned int AllowMove_ : 1;
+    unsigned int ImplementAccessors_ : 1;
+    unsigned int ImplementConversions_ : 1;
+    unsigned int ImplementStubs_ : 1;
+    unsigned int WriteNamespaces_ : 1;
 
     std::string OutputFile_;
     std::unordered_set<std::string> Targets_;

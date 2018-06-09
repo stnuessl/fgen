@@ -20,6 +20,16 @@
 
 #include <FGenConfiguration.hpp>
 
+void FGenConfiguration::setAllowMove(bool Value)
+{
+    AllowMove_ = Value;
+}
+
+bool FGenConfiguration::allowMove() const
+{
+    return AllowMove_;
+}
+
 void FGenConfiguration::setImplementAccessors(bool Value)
 {
     ImplementAccessors_ = Value;
@@ -28,6 +38,16 @@ void FGenConfiguration::setImplementAccessors(bool Value)
 bool FGenConfiguration::implementAccessors() const
 {
     return ImplementAccessors_;
+}
+
+void FGenConfiguration::setImplemenConversions(bool Value)
+{
+    ImplementConversions_ = Value;
+}
+
+bool FGenConfiguration::implementConversions() const
+{
+    return ImplementConversions_;
 }
 
 void FGenConfiguration::setImplementStubs(bool Value)
@@ -40,24 +60,14 @@ bool FGenConfiguration::implementStubs() const
     return ImplementStubs_;
 }
 
-void FGenConfiguration::setSkipNamespaces(bool Value)
+void FGenConfiguration::setWriteNamespaces(bool Value)
 {
-    SkipNamespaces_ = Value;
+    WriteNamespaces_ = Value;
 }
 
-bool FGenConfiguration::skipNamespaces() const
+bool FGenConfiguration::writeNamespaces() const
 {
-    return SkipNamespaces_;
-}
-
-void FGenConfiguration::setAllowMove(bool Value)
-{
-    AllowMove_ = Value;
-}
-
-bool FGenConfiguration::allowMove() const
-{
-    return AllowMove_;
+    return WriteNamespaces_;
 }
 
 void FGenConfiguration::setOutputFile(std::string File)

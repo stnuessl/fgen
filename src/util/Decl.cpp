@@ -26,9 +26,17 @@
 namespace util {
 namespace decl {
 
+bool isSingleBit(const clang::FieldDecl *FieldDecl)
+{
+    if (!FieldDecl->isBitField())
+        return false;
+
+    return FieldDecl->getBitWidthValue(FieldDecl->getASTContext()) == 1;
+}
+
 void printFullQualifiedName(const clang::NamedDecl *Decl,
                             llvm::raw_ostream &OStream,
-                            bool SkipNamespaces)
+                            bool WriteNamespaces)
 {
     /*
      * Write the qualified name of a named declaration including
@@ -41,7 +49,7 @@ void printFullQualifiedName(const clang::NamedDecl *Decl,
     /* Walk from to top declaration down to 'Decl' */
 
     for (const auto DeclContext : DeclContextVec) {
-        if (SkipNamespaces && clang::isa<clang::NamespaceDecl>(DeclContext))
+        if (!WriteNamespaces && clang::isa<clang::NamespaceDecl>(DeclContext))
             continue;
 
         /*
