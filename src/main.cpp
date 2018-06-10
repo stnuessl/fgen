@@ -33,18 +33,16 @@
 
 /* clang-format off */
 
-
 static llvm::cl::OptionCategory GeneralOptions("1. General");
 static llvm::cl::OptionCategory GeneratorOptions("2. Generator Options");
 
-
 static llvm::cl::list<std::string> TargetVec(
-    "target",
+    "ftarget",
     llvm::cl::desc(
-        "Generate function bodys for [target...]. A target must be\n"
-        "fully qualified identifiers, e.g. \"my_namespace::my_class\"."
+        "Generate function bodys for <name>. <name> must be\n"
+        "a valid prefix of a fully qualified identifier."
     ),
-    llvm::cl::value_desc("target"),
+    llvm::cl::value_desc("name"),
     llvm::cl::CommaSeparated,
     llvm::cl::cat(GeneralOptions)
 );
@@ -211,7 +209,8 @@ int main(int argc, const char *argv[])
     Configuration.setImplementStubs(FlagStubs);
     Configuration.setWriteNamespaces(FlagNamespaces);
     Configuration.setOutputFile(std::move(OutputFile));
-    Configuration.targets().insert(Begin, End);
+    auto &Targets = Configuration.targets();
+    Targets.insert(Targets.end(), Begin, End);
 
     clang::tooling::ClangTool Tool(*Database, Files);
 

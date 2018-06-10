@@ -33,6 +33,8 @@ void printFullQualifiedName(const clang::NamedDecl *NamedDecl,
                             llvm::raw_ostream &OStream,
                             bool WriteNamespaces = true);
 
+void getQualifiedName(const clang::NamedDecl *NamedDecl, std::string &Buffer);
+
 llvm::StringRef getNameOrDefault(const clang::Decl *Decl,
                                  llvm::StringRef Default);
 

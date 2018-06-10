@@ -95,7 +95,7 @@ void FGenVisitor::VisitFunctionDeclImpl(const clang::FunctionDecl *FunctionDecl)
     FunctionGenerator.write(FunctionDecl);
 }
 
-bool FGenVisitor::isTarget(const clang::FunctionDecl *Decl)
+bool FGenVisitor::isTarget(const clang::FunctionDecl *FunctionDecl)
 {
     /*
      * If no 'RecordQualifier' is specified, all function declarations
@@ -108,16 +108,15 @@ bool FGenVisitor::isTarget(const clang::FunctionDecl *Decl)
     if (Targets.empty())
         return true;
 
-    auto MethodDecl = clang::dyn_cast<clang::CXXMethodDecl>(Decl);
-    if (!MethodDecl)
-        return false;
-
     QualifiedNameBuffer_.clear();
 
-    llvm::raw_string_ostream OStream(QualifiedNameBuffer_);
-    OStream.SetUnbuffered();
+    util::decl::getQualifiedName(FunctionDecl, QualifiedNameBuffer_);
 
-    MethodDecl->getParent()->printQualifiedName(OStream);
+    llvm::StringRef Name(QualifiedNameBuffer_);
 
-    return !!Targets.count(QualifiedNameBuffer_);
+    auto PrefixMatches = [Name](const std::string &Prefix) {
+        return Name.startswith(Prefix);
+    };
+
+    return std::any_of(Targets.begin(), Targets.end(), PrefixMatches);
 }

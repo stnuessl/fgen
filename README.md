@@ -67,15 +67,11 @@ primarily concerned about the generated output of __fgen__.
 * Correctly handle namespaces by putting them before the corresponding 
 function definitions (but keep the option to put them in the function name 
 qualifiers as an alternative.)
-* Option --target" should also be usable for C code and namespaces.
 * Add some sort of configuration file to enable the user to set some default
 flags / arguments.
-* When run on source files, check for missing function bodies and create them.
-Would be useful if only a few functions have been newly added to the 
-corresponding header.
-* Auto implement CXXConversionDecls
-* Setters who automatically can assign from pointers and references to their
-non-pointer and non-references counterpart.
+* Options to setup the generated output: maybe one line per generated function,
+which would enable someone to do the following 
+__$ fgen \<file> | grep \<pattern> | clang-format__
 
 ## Installation
 

@@ -22,7 +22,7 @@
 #define FGEN_FGENCONFIGURATION_HPP_
 
 #include <string>
-#include <unordered_set>
+#include <vector>
 
 class FGenConfiguration {
 public:
@@ -46,8 +46,8 @@ public:
     void setOutputFile(std::string File);
     const std::string &outputFile() const;
 
-    std::unordered_set<std::string> &targets();
-    const std::unordered_set<std::string> &targets() const;
+    std::vector<std::string> &targets();
+    const std::vector<std::string> &targets() const;
 
 private:
     unsigned int AllowMove_ : 1;
@@ -57,7 +57,7 @@ private:
     unsigned int WriteNamespaces_ : 1;
 
     std::string OutputFile_;
-    std::unordered_set<std::string> Targets_;
+    std::vector<std::string> Targets_;
 };
 
 #endif /* FGEN_FGENCONFIGURATION_HPP_ */

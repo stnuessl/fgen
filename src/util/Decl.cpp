@@ -87,6 +87,14 @@ void printFullQualifiedName(const clang::NamedDecl *Decl,
     }
 }
 
+void getQualifiedName(const clang::NamedDecl *NamedDecl, std::string &Buffer)
+{
+    llvm::raw_string_ostream OStream(Buffer);
+    OStream.SetUnbuffered();
+
+    NamedDecl->printQualifiedName(OStream);
+}
+
 llvm::StringRef getNameOrDefault(const clang::Decl *Decl,
                                  llvm::StringRef Default)
 {

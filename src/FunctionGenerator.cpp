@@ -26,7 +26,7 @@
 #include <util/Decl.hpp>
 #include <util/Type.hpp>
 
-static llvm::StringRef extractRelevantSection(llvm::StringRef S)
+static llvm::StringRef extractRelevantSection(llvm::StringRef Name)
 {
     /*
      * This functions tries to extract the last section of a
@@ -39,17 +39,17 @@ static llvm::StringRef extractRelevantSection(llvm::StringRef S)
      * "Func_Name_"     --->    "Name"
      * "MACRO_NAME"     --->    "NAME"
      */
-    S = S.rtrim('_');
+    auto TrimmedName = Name.rtrim('_');
 
-    auto Index = S.rfind('_');
+    if (TrimmedName.empty())
+        return Name;
+
+    auto Index = TrimmedName.rfind('_');
     if (Index != llvm::StringRef::npos)
-        return S.substr(Index + 1);
+        return TrimmedName.substr(Index + 1);
 
-    if (S.empty())
-        return S;
-
-    auto Begin = S.begin();
-    auto End = S.end();
+    auto Begin = TrimmedName.begin();
+    auto End = TrimmedName.end();
     auto LastUpper = End;
     auto It = End - 1;
 
@@ -67,7 +67,7 @@ static llvm::StringRef extractRelevantSection(llvm::StringRef S)
         --It;
     }
 
-    return S;
+    return TrimmedName;
 }
 
 template<typename Pred>

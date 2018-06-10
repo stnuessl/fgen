@@ -18,6 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <llvm/ADT/StringRef.h>
+
 #include <FGenConfiguration.hpp>
 
 void FGenConfiguration::setAllowMove(bool Value)
@@ -80,12 +82,12 @@ const std::string &FGenConfiguration::outputFile() const
     return OutputFile_;
 }
 
-std::unordered_set<std::string> &FGenConfiguration::targets()
+std::vector<std::string> &FGenConfiguration::targets()
 {
     return Targets_;
 }
 
-const std::unordered_set<std::string> &FGenConfiguration::targets() const
+const std::vector<std::string> &FGenConfiguration::targets() const
 {
     return Targets_;
 }
