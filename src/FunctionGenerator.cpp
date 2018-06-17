@@ -164,6 +164,7 @@ void FunctionGenerator::write(const clang::FunctionDecl *FunctionDecl)
     writeParameters(FunctionDecl);
     writeQualifiers(FunctionDecl);
     writeBody(FunctionDecl);
+    writeEnding();
 }
 
 void FunctionGenerator::writeTemplateParameters(
@@ -223,7 +224,7 @@ void FunctionGenerator::writeTemplateParameters(
         OStream_ << (*It)->getName();
     }
 
-    OStream_ << ">\n";
+    OStream_ << "> ";
 }
 
 void FunctionGenerator::writeReturnType(const clang::FunctionDecl *FunctionDecl)
@@ -322,7 +323,7 @@ void FunctionGenerator::writeQualifiers(const clang::FunctionDecl *FunctionDecl)
         }
     }
 
-    OStream_ << "\n";
+    OStream_ << ' ';
 }
 
 void FunctionGenerator::writeBody(const clang::FunctionDecl *FunctionDecl)
@@ -345,7 +346,21 @@ void FunctionGenerator::writeBody(const clang::FunctionDecl *FunctionDecl)
             return;
     }
 
-    OStream_ << "{\n\n}\n\n";
+    OStream_ << "{}";
+}
+
+void FunctionGenerator::writeEnding()
+{
+    /*
+     * The output of 'fgen' is supposed to be piped to 'clang-format'.
+     * Sadly, 'clang-format' does not automatically insert an empty line
+     * between two functions. So we add an extra empty line here, except
+     * if asked to not do so.
+     */
+    if (Configuration_->trimOutput())
+        OStream_ << "\n";
+    else
+        OStream_ << "\n\n";
 }
 
 bool FunctionGenerator::tryWriteConversionStatement(
@@ -366,7 +381,7 @@ bool FunctionGenerator::tryWriteConversionStatement(
     if (!TypeDecl)
         return false;
 
-    OStream_ << "{\n    return " << TypeDecl->getName() << ";\n}\n\n";
+    OStream_ << "{ return " << TypeDecl->getName() << "; }";
 
     return true;
 }
@@ -380,26 +395,26 @@ bool FunctionGenerator::tryWriteReturnStatement(
         return false;
 
     if (ReturnType->isBooleanType()) {
-        OStream_ << "{\n    return false;\n}\n\n";
+        OStream_ << "{ return false; }";
         return true;
     }
 
     if (ReturnType->isIntegerType() || ReturnType->isPointerType()) {
-        OStream_ << "{\n    return 0;\n}\n\n";
+        OStream_ << "{ return 0; }";
         return true;
     }
 
     if (ReturnType->isFloatingType()) {
-        OStream_ << "{\n    return 0.0;\n}\n\n";
+        OStream_ << "{ return 0.0; }";
         return true;
     }
 
     if (util::type::hasDefaultConstructor(ReturnType)) {
         auto &Policy = FunctionDecl->getASTContext().getPrintingPolicy();
 
-        OStream_ << "{\n    return ";
+        OStream_ << "{ return ";
         ReturnType.print(OStream_, Policy);
-        OStream_ << "();\n}\n\n";
+        OStream_ << "(); }";
         return true;
     }
 
@@ -413,9 +428,9 @@ bool FunctionGenerator::tryWriteReturnStatement(
              * Declare a static variable and return it, if the type
              * is default constructible.
              */
-            OStream_ << "{\n    static ";
+            OStream_ << "{ static ";
             NonRefType.print(OStream_, Policy);
-            OStream_ << " stub_dummy_;\n\n    return stub_dummy_;\n}\n\n";
+            OStream_ << " stub_dummy_; return stub_dummy_; }";
 
             return true;
         }
@@ -497,9 +512,9 @@ bool FunctionGenerator::tryWriteCGetAccessor(
     if (!FieldDecl)
         return false;
 
-    OStream_ << "{\n    return "
+    OStream_ << "{ return "
              << util::decl::getNameOrDefault(Parameters[0], "arg1") << "->"
-             << FieldDecl->getName() << ";\n}\n\n";
+             << FieldDecl->getName() << "; }";
 
     return true;
 }
@@ -569,7 +584,7 @@ bool FunctionGenerator::tryWriteCXXGetAccessor(
 
     bool UseMove = IsRValue && useMoveAssignment(FieldDecl->getType());
 
-    OStream_ << "{\n    return ";
+    OStream_ << "{ return ";
 
     if (UseMove)
         OStream_ << "std::move(";
@@ -579,7 +594,7 @@ bool FunctionGenerator::tryWriteCXXGetAccessor(
     if (UseMove)
         OStream_ << ")";
 
-    OStream_ << ";\n}\n\n";
+    OStream_ << "; }";
 
     return true;
 }
@@ -621,10 +636,10 @@ bool FunctionGenerator::tryWriteCSetAccessor(
     if (!FieldDecl)
         return false;
 
-    OStream_ << "{\n    " << util::decl::getNameOrDefault(Parameters[0], "arg1")
+    OStream_ << "{ " << util::decl::getNameOrDefault(Parameters[0], "arg1")
              << "->" << FieldDecl->getName() << " = "
              << util::decl::getNameOrDefault(Parameters[1], "arg2")
-             << ";\n}\n\n";
+             << "; }";
 
     return true;
 }
@@ -664,7 +679,7 @@ bool FunctionGenerator::tryWriteCXXSetAccessor(
     if (!FieldDecl)
         return false;
 
-    OStream_ << "{\n    " << FieldDecl->getName() << " = ";
+    OStream_ << "{ " << FieldDecl->getName() << " = ";
 
     /* Try to use the move assignment operator if available */
     bool UseMove = useMoveAssignment(RHSType);
@@ -677,7 +692,7 @@ bool FunctionGenerator::tryWriteCXXSetAccessor(
     if (UseMove)
         OStream_ << ")";
 
-    OStream_ << ";\n}\n\n";
+    OStream_ << "; }";
 
     return true;
 }

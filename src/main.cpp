@@ -37,10 +37,10 @@ static llvm::cl::OptionCategory GeneralOptions("1. General");
 static llvm::cl::OptionCategory GeneratorOptions("2. Generator Options");
 
 static llvm::cl::list<std::string> TargetVec(
-    "ftarget",
+    "fcontains",
     llvm::cl::desc(
         "Generate function bodys for <name>. <name> must be\n"
-        "a valid prefix of a fully qualified identifier."
+        "a valid substring of a fully qualified identifier."
     ),
     llvm::cl::value_desc("name"),
     llvm::cl::CommaSeparated,
@@ -50,11 +50,23 @@ static llvm::cl::list<std::string> TargetVec(
 static llvm::cl::opt<bool> FlagAccessors(
     "faccessors",
     llvm::cl::desc(
-        "Try to automatically implement accessor functions.\n"
+        "Try to automatically implement accessor functions."
     ),
     llvm::cl::cat(GeneratorOptions),
     llvm::cl::ValueOptional,
     llvm::cl::init(true)
+);
+
+static llvm::cl::opt<bool> FlagTrimOutput(
+    "ftrim",
+    llvm::cl::desc(
+        "Remove unnecessary empty lines from the generated\n"
+        "output, which are normally added for a better\n"
+        "interaction with other tools."
+    ),
+    llvm::cl::cat(GeneratorOptions),
+    llvm::cl::ValueOptional,
+    llvm::cl::init(false)
 );
 
 static llvm::cl::opt<bool> FlagConversions(
@@ -163,10 +175,11 @@ int main(int argc, const char *argv[])
      * Seems like 'ParseCommandLineOptions' has to be called before
      * running this. Otherwise 'PrintHelpMessage' will cause a
      * segmentation fault.
-     * Also, 'PrintHelpMessage' will terminate the program.
      */
-    if (argc <= 1)
+    if (argc <= 1) {
         llvm::cl::PrintHelpMessage(false, true);
+        std::exit(EXIT_FAILURE);
+    }
 
     auto &Files = InputFiles;
     if (Files.empty()) {
@@ -204,6 +217,7 @@ int main(int argc, const char *argv[])
     auto End = std::make_move_iterator(TargetVec.end());
 
     Configuration.setAllowMove(FlagAllowMove);
+    Configuration.setTrimOutput(FlagTrimOutput);
     Configuration.setImplementAccessors(FlagAccessors);
     Configuration.setImplemenConversions(FlagConversions);
     Configuration.setImplementStubs(FlagStubs);

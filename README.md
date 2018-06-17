@@ -69,9 +69,6 @@ function definitions (but keep the option to put them in the function name
 qualifiers as an alternative.)
 * Add some sort of configuration file to enable the user to set some default
 flags / arguments.
-* Options to setup the generated output: maybe one line per generated function,
-which would enable someone to do the following 
-__$ fgen \<file> | grep \<pattern> | clang-format__
 
 ## Installation
 
@@ -159,6 +156,18 @@ To turn an option off the arguments have to passed like this:
 
 The strings __"true", "TRUE", "True", "1", "false", "FALSE", "False", "0"__
 are supported for boolean arguments.
+
+### Formatted Output
+
+It is almost impossible for __fgen__ to know how to format the code it generates
+according to the user's wishes. Luckily, there are dedicated programs for this
+such as [clang-format](https://clang.llvm.org/docs/ClangFormat.html).
+The recommended way to get the __fgen__ output formatted is to pipe it
+to such a standalone tool, e.g.:
+
+```
+    $ fgen [<file> ...] | clang-format 
+```
 
 ## Troubleshooting
     

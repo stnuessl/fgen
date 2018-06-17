@@ -114,9 +114,9 @@ bool FGenVisitor::isTarget(const clang::FunctionDecl *FunctionDecl)
 
     llvm::StringRef Name(QualifiedNameBuffer_);
 
-    auto PrefixMatches = [Name](const std::string &Prefix) {
-        return Name.startswith(Prefix);
+    auto Contains = [Name](const std::string &String) {
+        return Name.contains_lower(String);
     };
 
-    return std::any_of(Targets.begin(), Targets.end(), PrefixMatches);
+    return std::any_of(Targets.begin(), Targets.end(), Contains);
 }

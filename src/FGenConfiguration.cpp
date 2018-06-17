@@ -62,6 +62,16 @@ bool FGenConfiguration::implementStubs() const
     return ImplementStubs_;
 }
 
+void FGenConfiguration::setTrimOutput(bool Value)
+{
+    TrimOutput_ = Value;
+}
+
+bool FGenConfiguration::trimOutput() const
+{
+    return TrimOutput_;
+}
+
 void FGenConfiguration::setWriteNamespaces(bool Value)
 {
     WriteNamespaces_ = Value;

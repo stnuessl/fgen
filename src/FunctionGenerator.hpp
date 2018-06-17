@@ -54,6 +54,7 @@ private:
 
     void writeQualifiers(const clang::FunctionDecl *FunctionDecl);
     void writeBody(const clang::FunctionDecl *FunctionDecl);
+    void writeEnding();
 
     bool tryWriteConversionStatement(const clang::FunctionDecl *FunctionDecl);
     bool tryWriteReturnStatement(const clang::FunctionDecl *FunctionDecl);
