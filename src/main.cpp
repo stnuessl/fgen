@@ -92,18 +92,17 @@ static llvm::cl::opt<bool> FlagAllowMove(
 static llvm::cl::opt<bool> FlagStubs(
     "fstubs",
     llvm::cl::desc(
-        "Try to automatically implement function stubs\n"
-        "which are ready to be compiled."
+        "Try to automatically implement function stubs."
     ),
     llvm::cl::cat(GeneratorOptions),
     llvm::cl::init(true)
 );
 
 static llvm::cl::opt<bool> FlagNamespaces(
-    "fnamespaces",
+    "fnamespace-definitions",
     llvm::cl::desc(
-        "Do not include namespaces in function qualifiers\n"
-        "when generating function definitions."
+        "Use namespace definitions instead of writing the\n"
+        "namespace names in the function qualifiers."
     ),
     llvm::cl::cat(GeneratorOptions),
     llvm::cl::ValueOptional,                    
@@ -221,7 +220,7 @@ int main(int argc, const char *argv[])
     Configuration.setImplementAccessors(FlagAccessors);
     Configuration.setImplemenConversions(FlagConversions);
     Configuration.setImplementStubs(FlagStubs);
-    Configuration.setWriteNamespaces(FlagNamespaces);
+    Configuration.setNamespaceDefinitions(FlagNamespaces);
     Configuration.setOutputFile(std::move(OutputFile));
     auto &Targets = Configuration.targets();
     Targets.insert(Targets.end(), Begin, End);

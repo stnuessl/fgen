@@ -138,10 +138,7 @@ addIncludeDirectory(std::vector<clang::tooling::CompileCommand> &Commands,
     };
 
     for (auto &Command : Commands) {
-        auto Begin = Command.CommandLine.begin();
-        auto End = Command.CommandLine.end();
-
-        if (std::none_of(Begin, End, equalsNewArgument))
+        if (llvm::none_of(Command.CommandLine, equalsNewArgument))
             Command.CommandLine.push_back(NewArgument);
     }
 }
@@ -189,16 +186,15 @@ FGenCompilationDatabase::FGenCompilationDatabase(
     auto CCEnd = CompileCommands.end();
 
     auto IsCompileCommand = [](const clang::tooling::CompileCommand &Command) {
-        auto Begin = Command.CommandLine.begin();
-        auto End = Command.CommandLine.end();
         auto Pred = [](const std::string &Arg) { return Arg == "-c"; };
 
-        return std::any_of(Begin, End, Pred);
+        return llvm::any_of(Command.CommandLine, Pred);
     };
 
     auto It = std::find_if(CCBegin, CCEnd, IsCompileCommand);
     if (It == CCEnd)
         It = CCBegin;
+
     /*
      * Take the first entry of the JSON compilation database and
      * use its compile command as the basis for the fixed compilation

@@ -34,63 +34,9 @@ bool isSingleBit(const clang::FieldDecl *FieldDecl)
     return FieldDecl->getBitWidthValue(FieldDecl->getASTContext()) == 1;
 }
 
-void printFullQualifiedName(const clang::NamedDecl *Decl,
-                            llvm::raw_ostream &OStream,
-                            bool WriteNamespaces)
-{
-    /*
-     * Write the qualified name of a named declaration including
-     * template arguments.
-     */
-    llvm::SmallVector<const clang::DeclContext *, 8> DeclContextVec;
-
-    util::decl::getDeclContexts(Decl, DeclContextVec);
-
-    /* Walk from to top declaration down to 'Decl' */
-
-    for (const auto DeclContext : DeclContextVec) {
-        if (!WriteNamespaces && clang::isa<clang::NamespaceDecl>(DeclContext))
-            continue;
-
-        /*
-         * Just writing the Constructor / Destructor Decl to the stream
-         * does not work in case we are dealing with a
-         * 'ClassTemplateDecl': it would result in something like (1)
-         *      class<T>::class<T>()
-         *                ^(1)
-         * which does not compile.
-         * We handle these cases here for constructors and destructors
-         * separately.
-         */
-
-        auto RecordDecl = clang::dyn_cast<clang::RecordDecl>(DeclContext);
-        auto CtorDecl = clang::dyn_cast<clang::CXXConstructorDecl>(DeclContext);
-        auto DtorDecl = clang::dyn_cast<clang::CXXDestructorDecl>(DeclContext);
-        auto NamedDecl = clang::dyn_cast<clang::NamedDecl>(DeclContext);
-
-        if (RecordDecl) {
-            /* This takes care of the type name and the template arguments */
-            auto &PrintingPolicy = Decl->getASTContext().getPrintingPolicy();
-
-            auto Type = clang::QualType(RecordDecl->getTypeForDecl(), 0);
-            Type.print(OStream, PrintingPolicy);
-        } else if (CtorDecl) {
-            OStream << *CtorDecl->getParent();
-        } else if (DtorDecl) {
-            OStream << '~' << *DtorDecl->getParent();
-        } else {
-            OStream << *NamedDecl;
-        }
-
-        if (DeclContext != DeclContextVec.back())
-            OStream << "::";
-    }
-}
-
 void getQualifiedName(const clang::NamedDecl *NamedDecl, std::string &Buffer)
 {
     llvm::raw_string_ostream OStream(Buffer);
-    OStream.SetUnbuffered();
 
     NamedDecl->printQualifiedName(OStream);
 }
@@ -115,8 +61,8 @@ std::string generateUSR(const clang::Decl *Decl)
     return std::string(USRBuffer.begin(), USRBuffer.end());
 }
 
-void getDeclContexts(const clang::NamedDecl *Decl,
-                     llvm::SmallVectorImpl<const clang::DeclContext *> &Vec)
+void getFullContext(const clang::NamedDecl *Decl,
+                    llvm::SmallVectorImpl<const clang::DeclContext *> &Vec)
 {
     auto OldSize = Vec.size();
 

@@ -24,37 +24,6 @@
 // template <typename T, typename... Args>
 // std::unique_ptr<T> make_unique(Args &&... args);
 
-struct CAccessor { int a, b; };
-
-int CAccessor_get_a(const struct CAccessor *self);
-
-void CAccessor_set_a(struct CAccessor *self, int value);
-
-int CAccessor_get_b(const struct CAccessor *self);
-
-void CAccessor_set_b(struct CAccessor *self, int value);
-
-class CXXAccessor {
-public:
-    int getA() const;
-    void setA(int Value);
-    
-    int getB() const;
-    void setB(int Value);
-    
-    int getAA() const;
-    void setAA(int Value);
-    
-    int getAB() const;
-    void setAB(int Value);
-    
-    int getBB() const;
-    void setBB(int Value);
-    
-private:
-    int A_, B_, AA_, AB_, BB_;
-};
-
 namespace ns {
 
 template <typename T, std::size_t size = 16>

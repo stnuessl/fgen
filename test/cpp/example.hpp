@@ -18,27 +18,39 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef FGEN_UTIL_DECL_HPP_
-#define FGEN_UTIL_DECL_HPP_
+#ifndef FGEN_EXAMPLE_HPP_
+#define FGEN_EXAMPLE_HPP_
 
-#include <clang/AST/Decl.h>
-#include <llvm/ADT/SmallVector.h>
+#include <vector>
 
-namespace util {
-namespace decl {
+namespace ns {
 
-bool isSingleBit(const clang::FieldDecl *Decl);
+class example {
+public:
+    example() = default;
+    virtual ~example();
+    
+    void set_valid(bool valid);
+    bool valid() const;
+    
+    void set_vec(std::vector<int> vec);
+    void set_vec(std::vector<int> &vec);
+    
+    std::vector<int> &vec();
+    const std::vector<int> &vec() const;
+    
+    operator bool() const;
+private:
+    unsigned char valid_ : 1;
+    
+    std::vector<int> vec_;
+};
 
-void getQualifiedName(const clang::NamedDecl *NamedDecl, std::string &Buffer);
+example create();
 
-llvm::StringRef getNameOrDefault(const clang::Decl *Decl,
-                                 llvm::StringRef Default);
-
-std::string generateUSR(const clang::Decl *Decl);
-
-void getFullContext(const clang::NamedDecl *Decl,
-                    llvm::SmallVectorImpl<const clang::DeclContext *> &Vec);
 }
-}
 
-#endif /* FGEN_UTIL_DECL_HPP_ */
+bool operator==(const ns::example &lhs, const ns::example &rhs);
+
+
+#endif /* FGEN_EXAMPLE_HPP_ */

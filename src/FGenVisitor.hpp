@@ -21,8 +21,9 @@
 #ifndef FGEN_FGENVISITOR_HPP_
 #define FGEN_FGENVISITOR_HPP_
 
-#include <clang/AST/RecursiveASTVisitor.h>
 #include <unordered_set>
+
+#include <clang/AST/RecursiveASTVisitor.h>
 
 #include <FunctionGenerator.hpp>
 
@@ -41,12 +42,12 @@ private:
 
     bool isTarget(const clang::FunctionDecl *Decl);
 
-    std::shared_ptr<FGenConfiguration> Configuration_;
     std::unordered_set<std::string> VisitedDecls_;
-
     std::string QualifiedNameBuffer_;
-    std::unordered_set<std::string> Includes_;
-    std::string Output_;
+
+    FunctionGenerator FunctionGenerator_;
+
+    std::shared_ptr<FGenConfiguration> Configuration_;
 };
 
 #endif /* FGEN_FGENVISITOR_HPP_ */

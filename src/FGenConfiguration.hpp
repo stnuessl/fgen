@@ -30,7 +30,7 @@ public:
 
     void setAllowMove(bool Value);
     bool allowMove() const;
-    
+
     void setImplementAccessors(bool Value);
     bool implementAccessors() const;
 
@@ -39,12 +39,12 @@ public:
 
     void setImplementStubs(bool Value);
     bool implementStubs() const;
-    
+
     void setTrimOutput(bool Value);
     bool trimOutput() const;
 
-    void setWriteNamespaces(bool Value);
-    bool writeNamespaces() const;
+    void setNamespaceDefinitions(bool Value);
+    bool namespaceDefinitions() const;
 
     void setOutputFile(std::string File);
     const std::string &outputFile() const;
@@ -58,7 +58,7 @@ private:
     unsigned int ImplementConversions_ : 1;
     unsigned int ImplementStubs_ : 1;
     unsigned int TrimOutput_ : 1;
-    unsigned int WriteNamespaces_ : 1;
+    unsigned int NamespaceDefinitions_ : 1;
 
     std::string OutputFile_;
     std::vector<std::string> Targets_;

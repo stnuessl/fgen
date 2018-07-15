@@ -25,12 +25,15 @@ _fgen()
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
-    opts="--accessors
-          --compilation-database
-          --output
-          --skip-namespaces
-          --stubs
-          --target"
+    opts="-faccessors
+          -fcontains
+          -fmove
+          -fnamespace-definitions
+          -fstubs
+          -ftrim
+          -help
+          -compilation-database
+          -o"
 
     case "${cur}" in 
         -*)

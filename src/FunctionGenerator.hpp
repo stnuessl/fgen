@@ -39,17 +39,22 @@
 
 class FunctionGenerator {
 public:
-    FunctionGenerator(std::string &Buffer,
-                      std::unordered_set<std::string> &Includes,
-                      const FGenConfiguration &Configuration);
+    FunctionGenerator();
 
-    void write(const clang::FunctionDecl *FunctionDecl);
+    void setConfiguration(std::shared_ptr<FGenConfiguration> Configuration);
+
+    void add(const clang::FunctionDecl *FunctionDecl);
+    void dump(llvm::raw_ostream &OStream = llvm::outs()) const;
+    void clear();
 
 private:
+    void writeNamespaceDefinitions(
+        const llvm::SmallVector<const clang::DeclContext *, 8> &ContextVec);
     void writeTemplateParameters(const clang::FunctionDecl *FunctionDecl);
     void writeTemplateParameters(const clang::TemplateParameterList *List);
     void writeReturnType(const clang::FunctionDecl *FunctionDecl);
-    void writeFullName(const clang::FunctionDecl *FunctionDecl);
+    void writeFullQualifiedName(
+        const llvm::SmallVector<const clang::DeclContext *, 8> &ContextVec);
     void writeParameters(const clang::FunctionDecl *FunctionDecl);
 
     void writeQualifiers(const clang::FunctionDecl *FunctionDecl);
@@ -69,10 +74,11 @@ private:
     bool useMoveAssignment(clang::QualType Type);
     bool addInclude(std::string Include);
 
-    llvm::raw_string_ostream OStream_;
+    std::vector<const clang::NamespaceDecl *> ActiveNamespaces_;
+    std::unordered_set<std::string> Includes_;
+    std::string Output_;
 
-    std::unordered_set<std::string> *Includes_;
-    const FGenConfiguration *Configuration_;
+    std::shared_ptr<FGenConfiguration> Configuration_;
 };
 
 #endif /* FGEN_FUNCTIONGENERATOR_HPP_ */

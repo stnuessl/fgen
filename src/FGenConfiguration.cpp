@@ -72,14 +72,14 @@ bool FGenConfiguration::trimOutput() const
     return TrimOutput_;
 }
 
-void FGenConfiguration::setWriteNamespaces(bool Value)
+void FGenConfiguration::setNamespaceDefinitions(bool Value)
 {
-    WriteNamespaces_ = Value;
+    NamespaceDefinitions_ = Value;
 }
 
-bool FGenConfiguration::writeNamespaces() const
+bool FGenConfiguration::namespaceDefinitions() const
 {
-    return WriteNamespaces_;
+    return NamespaceDefinitions_;
 }
 
 void FGenConfiguration::setOutputFile(std::string File)

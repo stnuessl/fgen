@@ -38,6 +38,11 @@ SUPP		:=
 #
 BIN		:= fgen 
 
+# Need to install / deinstall the bash completion
+BASH_COMPLETION_SRC	:= bash-completion/fgen
+BASH_COMPLETION_DIR	:= /usr/share/bash-completion/completions/
+BASH_COMPLETION_TARGET	:= /usr/share/bash-completion/completions/fgen
+
 ifndef BIN
 $(error No binary name specified)
 endif
@@ -312,9 +317,11 @@ clean:
 
 install: $(TARGET)
 	cp $(TARGET) $(INSTALL_DIR)
+	cp $(BASH_COMPLETION_SRC) $(BASH_COMPLETION_DIR)
 
 uninstall:
-	rm -f $(INSTALL_DIR)$(BIN)
+	rm -f $(INSTALL_DIR)$(BIN) $(BASH_COMPLETION_TARGET)
+	
 
 .PHONY: all clean install uninstall
 .SILENT: clean $(DIRS)

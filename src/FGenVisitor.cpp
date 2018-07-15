@@ -29,20 +29,20 @@ static bool isUserProvided(const clang::FunctionDecl *FunctionDecl)
 }
 
 FGenVisitor::FGenVisitor()
-    : Configuration_(nullptr),
-      VisitedDecls_(),
+    : VisitedDecls_(),
       QualifiedNameBuffer_(),
-      Includes_(),
-      Output_()
+      FunctionGenerator_(),
+      Configuration_(nullptr)
 {
     QualifiedNameBuffer_.reserve(1024);
-    Output_.reserve(2048);
 }
 
 void FGenVisitor::setConfiguration(
     std::shared_ptr<FGenConfiguration> Configuration)
 {
     Configuration_ = std::move(Configuration);
+
+    FunctionGenerator_.setConfiguration(Configuration_);
 }
 
 bool FGenVisitor::VisitFunctionDecl(clang::FunctionDecl *FunctionDecl)
@@ -60,10 +60,7 @@ bool FGenVisitor::VisitFunctionDecl(clang::FunctionDecl *FunctionDecl)
 
 void FGenVisitor::dump(llvm::raw_ostream &OStream) const
 {
-    for (const auto &Include : Includes_)
-        OStream << Include << "\n";
-
-    OStream << "\n" << Output_ << "\n";
+    FunctionGenerator_.dump(OStream);
 }
 
 void FGenVisitor::VisitFunctionDeclImpl(const clang::FunctionDecl *FunctionDecl)
@@ -91,8 +88,7 @@ void FGenVisitor::VisitFunctionDeclImpl(const clang::FunctionDecl *FunctionDecl)
 
     VisitedDecls_.insert(std::move(USR));
 
-    FunctionGenerator FunctionGenerator(Output_, Includes_, *Configuration_);
-    FunctionGenerator.write(FunctionDecl);
+    FunctionGenerator_.add(FunctionDecl);
 }
 
 bool FGenVisitor::isTarget(const clang::FunctionDecl *FunctionDecl)
@@ -118,5 +114,5 @@ bool FGenVisitor::isTarget(const clang::FunctionDecl *FunctionDecl)
         return Name.contains_lower(String);
     };
 
-    return std::any_of(Targets.begin(), Targets.end(), Contains);
+    return llvm::any_of(Targets, Contains);
 }
