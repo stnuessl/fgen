@@ -1,9 +1,6 @@
-# Work in progress.
-
 # fgen - function generator for C and C++
 
 ## Overview
-* [Work in progress.](README.md#work-in-progress)
 * [fgen - function generator for C and C++](README.md#fgen---function-generator-for-c-and-c)
     * [Overview](README.md#overview)
     * [Motivation](README.md#motivation)
@@ -18,7 +15,7 @@
             * [Arch Linux](README.md#arch-linux)
         * [Compiling](README.md#compiling)
     * [Usage](README.md#usage)
-        * [Formatted Output](README.md#formatted-output)
+        * [General](README.md#general)
         * [Examples](README.md#examples)
             * [Option "-fstubs"](README.md#option--fstubs)
             * [Option "-faccessors"](README.md#option--faccessors)
@@ -26,11 +23,13 @@
             * [Option "-fmove"](README.md#option--fmove)
             * [Option "-fnamespace-definitions"](README.md#option--fnamespace-definitions)
             * [Option "-fcontains"](README.md#option--fcontains)
+        * [Formatted Output](README.md#formatted-output)
     * [Troubleshooting](README.md#troubleshooting)
     * [Bugs and Bug Reports](README.md#bugs-and-bug-reports)
 
-
 ## Motivation
+
+TBD
 
 ## Advantages
 
@@ -72,11 +71,9 @@ your code should be save.
 * Suppress (syntax) errors or at least give an option to do so. 
 There are much better tools out there for this anyway, so a user should be 
 primarily concerned about the generated output of __fgen__.
-* Correctly handle namespaces by putting them before the corresponding 
-function definitions (but keep the option to put them in the function name 
-qualifiers as an alternative.)
 * Add some sort of configuration file to enable the user to set some default
 flags / arguments.
+* Add an option to automatically include the passed header files.
 
 ## Installation
 
@@ -114,7 +111,7 @@ The above listed programs and dependencies can be installed with the
 following _pacman_ invocation:
 
 ```
-    # pacman -Syu llvm clang gcc make git
+# pacman -Syu llvm clang gcc make git
 ```
 
 ### Compiling
@@ -122,62 +119,80 @@ following _pacman_ invocation:
 First you need to download the source code from this repository and 
 change to the project directory. Run:
 ```
-    $ git clone https://github.com/stnuessl/fgen
-    $ cd fgen/
+$ git clone https://github.com/stnuessl/fgen
+$ cd fgen/
 ```
 After that you need to compile the source code. This can be done with:
 ```
-    $ make
+$ make
 ```
 If you want to compile with _clang++_ change the command to
 ```
-    $ make CXX=clang++
+$ make CXX=clang++
 ```
 
 The last command installs the __bash-completion__ and the __fgen__ binary on your
 system:
 ```
-    $ make install
+$ make install
 ```
 
 ## Usage
 
-An overview over all __fgen__ options is available with:
+This section describes how to use __fgen__. We first start with some general
+information before going into details with a few explicit examples. Note that
+for the sake of brevity not __all__ options are discussed here. 
+
+### General
+
+As of now __fgen__'s main focus is to be run on header (.h / .hpp) files.
+So a typical __fgen__ invocation will look like this
 
 ```
-    $ fgen -help
+$ fgen [<file> ...]
 ```
+
+Although __fgen__ can process multiple files per invocation (you can specify a
+list of files on the command line), it won't usually make sense to do so.
+
+The generated output of __fgen__ will be written to stdout. To start with your
+implementation pipe the produced output to a file.
+
+```
+$ fgen [<file> ...] > file.cpp
+```
+
+The output of __fgen__ can be controlled with command line arguments 
+which are used to enable or disable __fgen__'s options.
+To get an overview and some short documentation over all available 
+options you can run
+
+```
+$ fgen -help
+```
+
+Most of these options will be discussed in the [Examples](README.md#examples)
+section down below. If you are already familiar with most of the options you 
+can just double press the tabulator key to invoke the bash-completion for 
+suggestions.
 
 As of now __fgen__ is run with some options enabled by default. This means
-that the following two command are equal:
+that the following two commands are equal:
 
 ```
-    $ fgen [<file> ...]
-    $ fgen -faccessors -fconversions -fmove -fnamespaces -fstubs [<file> ...]
+$ fgen [<file> ...]
+$ fgen -faccessors -fconversions -fmove -fnamespaces -fstubs [<file> ...]
 ```
 
-To turn an option off the arguments have to passed like this:
+To turn an option off, the arguments have to be passed like this:
 
 ```
-    $ fgen -faccessors=false -fconversions=false [...] [<file> ...]
+$ fgen -faccessors=false -fconversions=false [...] [<file> ...]
 ```
 
 The strings __"true", "TRUE", "True", "1", "false", "FALSE", "False", "0"__
 are supported for boolean arguments.
 
-
-
-### Formatted Output
-
-It is almost impossible for __fgen__ to know how to format the code it generates
-according to the user's wishes. Luckily, there are dedicated programs for this
-such as [clang-format](https://clang.llvm.org/docs/ClangFormat.html).
-The recommended way to get the __fgen__ output formatted is to pipe it
-to such a standalone tool, e.g.:
-
-```
-    $ fgen [<file> ...] | clang-format 
-```
 
 ### Examples
 
@@ -232,7 +247,7 @@ reason, we will not pipe the output to
 So the first command we run is
 
 ```
-fgen -ftrim -fstubs=false -faccessors=false -fconversions=false -fmove=false example.hpp
+$ fgen -ftrim -fstubs=false -faccessors=false -fconversions=false -fmove=false example.hpp
 ```
 and the result of this specific __fgen__ invocation is:
 ```
@@ -255,7 +270,7 @@ bool operator==(const ns::example &lhs, const ns::example &rhs) {}
 For the next command we will turn on the "-fstubs" option, which tries to
 implement a simple function body to make the result instantly compileable.
 ```
-fgen -ftrim -fstubs -faccessors=false -fconversions=false -fmove=false example.hpp
+$ fgen -ftrim -fstubs -faccessors=false -fconversions=false -fmove=false example.hpp
 ```
 Generated output:
 ```
@@ -281,7 +296,7 @@ we turn "-faccessors" on.
 
 The __fgen__ invocation with "-faccessors" turned on reads
 ```
-fgen -ftrim -fstubs -faccessors -fconversions=false -fmove=false example.hpp
+$ fgen -ftrim -fstubs -faccessors -fconversions=false -fmove=false example.hpp
 ```
 and the generated output is:
 ```
@@ -307,7 +322,7 @@ In the next step, we turn on the "-fconversions" option.
 #### Option "-fconversions"
 
 ```
-fgen -ftrim -fstubs -faccessors -fconversions -fmove=false example.hpp
+$ fgen -ftrim -fstubs -faccessors -fconversions -fmove=false example.hpp
 ```
 Because there is so little change in the generated output, 
 only the interesting part is shown here.
@@ -321,7 +336,7 @@ class. Again, this implementation seems to be more useful than the previous one.
 
 #### Option "-fmove"
 ```
-fgen -ftrim -fstubs -faccessors -fconversions -fmove example.hpp
+$ fgen -ftrim -fstubs -faccessors -fconversions -fmove example.hpp
 ```
 Note that the next __fgen__ invocations is equivalent to the previous one, 
 because the left out options are enabled by default.
@@ -350,7 +365,7 @@ any namespace definitions, but instead the namespace declaration name will be
 used in the qualified function name.
 
 ```
-fgen -ftrim -fnamespace-definitions=false example.hpp
+$ fgen -ftrim -fnamespace-definitions=false example.hpp
 ```
 Generated output:
 ```
@@ -378,7 +393,7 @@ generated output if the additionally passed string is contained somehow in
 the fully qualified function name.
 
 ```
-fgen -ftrim -fcontains=set example.hpp
+$ fgen -ftrim -fcontains=set example.hpp
 ```
 Generated output:
 ```
@@ -396,7 +411,7 @@ Additional functions can be accessed if multiple strings are passed to
 "-fcontains".
 
 ```
-fgen -ftrim -fcontains=set,operator== example.hpp
+    $ fgen -ftrim -fcontains=set,operator== example.hpp
 ```
 Generated output:
 ```
@@ -408,6 +423,81 @@ void example::set_vec(std::vector<int> vec) { vec_ = std::move(vec); }
 void example::set_vec(std::vector<int> &vec) {}
 }
 bool operator==(const ns::example &lhs, const ns::example &rhs) { return false; }
+```
+
+### Formatted Output
+
+It is almost impossible for __fgen__ to know how to format the code it generates
+according to the user's wishes. Luckily, there are dedicated programs for this
+such as [clang-format](https://clang.llvm.org/docs/ClangFormat.html).
+The recommended way to get the __fgen__ output formatted is to pipe it
+to such a standalone tool, e.g.:
+
+```
+$ fgen [<file> ...] | clang-format 
+```
+
+Using the command for "example.hpp" from above as an example we get
+
+```
+$ fgen example.hpp | clang-format 
+```
+
+Depending on the clang-format configuration, this produces something like
+the following output.
+
+```
+#include <utility>
+
+namespace ns {
+
+example::~example()
+{}
+
+void example::set_valid(bool valid)
+{
+    valid_ = valid;
+}
+
+bool example::valid() const
+{
+    return valid_;
+}
+
+void example::set_vec(std::vector<int> vec)
+{
+    vec_ = std::move(vec);
+}
+
+void example::set_vec(std::vector<int> &vec)
+{}
+
+std::vector<int> &example::vec()
+{
+    return vec_;
+}
+
+const std::vector<int> &example::vec() const
+{
+    return vec_;
+}
+
+example::operator bool() const
+{
+    return valid_;
+}
+
+ns::example create()
+{
+    return ns::example();
+}
+}
+
+bool operator==(const ns::example &lhs, const ns::example &rhs)
+{
+    return false;
+}
+
 ```
 
 ## Troubleshooting

@@ -61,8 +61,8 @@ static llvm::cl::opt<bool> FlagTrimOutput(
     "ftrim",
     llvm::cl::desc(
         "Remove unnecessary empty lines from the generated\n"
-        "output, which are normally added for a better\n"
-        "interaction with other tools."
+        "output. Such lines are intentionally added to improve\n"
+        "the visual appearance of the code."
     ),
     llvm::cl::cat(GeneratorOptions),
     llvm::cl::ValueOptional,

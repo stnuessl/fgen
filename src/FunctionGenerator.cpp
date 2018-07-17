@@ -267,6 +267,9 @@ void FunctionGenerator::writeNamespaceDefinitions(
         ++OkIndex;
 
         OStream << "namespace " << *NamespaceDecl << " {\n";
+        
+        if (!Configuration_->trimOutput())
+            OStream << '\n';
     }
 
     /* Close namespaces which are no longer present */
