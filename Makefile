@@ -146,27 +146,27 @@ PKGCONF		:= \
 #
 LIBS		:= \
 		-Wl,--start-group					\
-		-lclangAnalysis 					\
 		-lclangAST 						\
 		-lclangBasic						\
-		-lclangDriver 						\
-		-lclangEdit 						\
 		-lclangFrontend 					\
 		-lclangFrontendTool 					\
 		-lclangIndex 						\
 		-lclangLex 						\
 		-lclangParse 						\
-		-lclangSema 						\
-		-lclangSerialization 					\
 		-lclangTooling						\
 		-lclangToolingCore					\
 		-Wl,--end-group						\
 		$(shell llvm-config --libs)				\
 		$(shell llvm-config --system-libs)			\
-# 		-lclangFormat						\
+#		-lclangAnalysis 					\
 # 		-lclangASTMatchers					\
+#		-lclangDriver 						\
+#		-lclangEdit 						\
+# 		-lclangFormat						\
 # 		-lclangRewrite						\
 # 		-lclangRewriteFrontend 					\
+#		-lclangSema 						\
+#		-lclangSerialization 					\
 # 		-pthread						\
 # 		-lm							\
 # 		-Wl,--start-group					\
