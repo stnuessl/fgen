@@ -38,6 +38,7 @@ std::string generateUSR(const clang::Decl *Decl);
 
 void getFullContext(const clang::NamedDecl *Decl,
                     llvm::SmallVectorImpl<const clang::DeclContext *> &Vec);
+
 }
 }
 

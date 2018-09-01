@@ -54,7 +54,7 @@ clang::QualType getNonConstNonReferenceType(clang::QualType Type)
     return removeConst(Type.getNonReferenceType());
 }
 
-bool isReturnAssignmentOk(clang::QualType Type1, clang::QualType Type2)
+bool returnAssignmentOk(clang::QualType Type1, clang::QualType Type2)
 {
     /*
      * Perform a check if type2 can be assigned to type1 without a
@@ -79,14 +79,14 @@ bool isReturnAssignmentOk(clang::QualType Type1, clang::QualType Type2)
     return Type1.getCanonicalType() == Type2.getCanonicalType();
 }
 
-bool isVariableAssignmentOk(clang::QualType Type1, clang::QualType Type2)
+bool variableAssignmentOk(clang::QualType Type1, clang::QualType Type2)
 {
     bool Type1Const = Type1.isConstQualified();
 
     if (Type1Const && !Type1->isPointerType() && !Type1->isReferenceType())
         return false;
 
-    return isReturnAssignmentOk(Type1, Type2);
+    return returnAssignmentOk(Type1, Type2);
 }
 
 bool hasDefaultConstructor(const clang::QualType Type)

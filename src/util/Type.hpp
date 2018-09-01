@@ -30,13 +30,14 @@ clang::QualType removeConst(clang::QualType Type);
 
 clang::QualType getNonConstNonReferenceType(clang::QualType Type);
 
-bool isReturnAssignmentOk(clang::QualType Type1, clang::QualType Type2);
+bool returnAssignmentOk(clang::QualType Type1, clang::QualType Type2);
 
-bool isVariableAssignmentOk(clang::QualType Type1, clang::QualType Type2);
+bool variableAssignmentOk(clang::QualType Type1, clang::QualType Type2);
 
 bool hasDefaultConstructor(const clang::QualType Type);
 
 bool hasMoveAssignment(const clang::QualType Type);
+
 }
 }
 

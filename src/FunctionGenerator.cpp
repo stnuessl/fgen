@@ -267,7 +267,7 @@ void FunctionGenerator::writeNamespaceDefinitions(
         ++OkIndex;
 
         OStream << "namespace " << *NamespaceDecl << " {\n";
-        
+
         if (!Configuration_->trimOutput())
             OStream << '\n';
     }
@@ -553,7 +553,7 @@ bool FunctionGenerator::tryWriteConversionStatement(
     auto ReturnType = ConvDecl->getReturnType();
 
     auto TypePred = [ReturnType](clang::QualType FieldType) {
-        return util::type::isReturnAssignmentOk(ReturnType, FieldType);
+        return util::type::returnAssignmentOk(ReturnType, FieldType);
     };
 
     auto TypeDecl = bestFieldDeclMatch(RecordDecl, TypePred);
@@ -602,11 +602,24 @@ bool FunctionGenerator::tryWriteReturnStatement(
     }
 
     if (ReturnType->isReferenceType()) {
+        auto MethodDecl = clang::dyn_cast<clang::CXXMethodDecl>(FunctionDecl);
+
+        if (MethodDecl && !MethodDecl->isStatic()) {
+            auto &ASTContext = MethodDecl->getASTContext();
+            auto ThisType = MethodDecl->getThisType(ASTContext);
+            auto RecordType = ThisType->getPointeeType();
+
+            if (util::type::returnAssignmentOk(ReturnType, RecordType)) {
+                OStream << "{ return *this; }";
+                return true;
+            }
+        }
+
         auto NonRefType = ReturnType.getNonReferenceType();
-        auto &Policy = FunctionDecl->getASTContext().getPrintingPolicy();
 
         bool IsBuiltIn = NonRefType->isBuiltinType();
         if (IsBuiltIn || util::type::hasDefaultConstructor(NonRefType)) {
+            auto &Policy = FunctionDecl->getASTContext().getPrintingPolicy();
             /*
              * Declare a static variable and return it, if the type
              * is default constructible.
@@ -665,7 +678,7 @@ bool FunctionGenerator::tryWriteCGetAccessor(
     const auto ReturnType = FunctionDecl->getReturnType();
 
     auto TypePred = [ReturnType](clang::QualType FieldType) {
-        return util::type::isReturnAssignmentOk(ReturnType, FieldType);
+        return util::type::returnAssignmentOk(ReturnType, FieldType);
     };
 
     auto FieldDecl = bestFieldDeclMatch(RecordDecl, Name, TypePred);
@@ -733,7 +746,7 @@ bool FunctionGenerator::tryWriteCXXGetAccessor(
     const auto ReturnType = MethodDecl->getReturnType();
 
     auto TypePred = [ReturnType](clang::QualType FieldType) {
-        return util::type::isReturnAssignmentOk(ReturnType, FieldType);
+        return util::type::returnAssignmentOk(ReturnType, FieldType);
     };
 
     auto FieldDecl = bestFieldDeclMatch(RecordDecl, Name, TypePred);
@@ -793,7 +806,7 @@ bool FunctionGenerator::tryWriteCSetAccessor(
     const auto RHSType = Parameters[1]->getType();
 
     auto TypePred = [RHSType](clang::QualType FieldType) {
-        return util::type::isVariableAssignmentOk(FieldType, RHSType);
+        return util::type::variableAssignmentOk(FieldType, RHSType);
     };
 
     auto FieldDecl = bestFieldDeclMatch(RecordDecl, Name, TypePred);
@@ -836,7 +849,7 @@ bool FunctionGenerator::tryWriteCXXSetAccessor(
 
     const auto RHSType = Parameters[0]->getType();
     auto TypePred = [RHSType](clang::QualType FieldType) {
-        return util::type::isVariableAssignmentOk(FieldType, RHSType);
+        return util::type::variableAssignmentOk(FieldType, RHSType);
     };
 
     auto FieldDecl = bestFieldDeclMatch(RecordDecl, Name, TypePred);
