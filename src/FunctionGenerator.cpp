@@ -446,8 +446,9 @@ void FunctionGenerator::writeParameters(const clang::FunctionDecl *FunctionDecl)
     OStream << "(";
 
     auto Parameters = FunctionDecl->parameters();
+    auto Size = Parameters.size();
 
-    for (std::size_t i = 0; i < Parameters.size(); ++i) {
+    for (std::size_t i = 0; i < Size; ++i) {
         auto QualType = Parameters[i]->getType();
 
         if (i > 0)
@@ -471,6 +472,13 @@ void FunctionGenerator::writeParameters(const clang::FunctionDecl *FunctionDecl)
             OStream << "arg" << i + 1;
         else
             OStream << Name;
+    }
+    
+    if (FunctionDecl->isVariadic()) {
+        if (Size)
+            OStream << ", ";
+        
+        OStream << "...";
     }
 
     OStream << ")";

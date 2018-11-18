@@ -38,9 +38,7 @@ createBasicFixedCompilationDatabase(llvm::StringRef CompilationDirectory)
 {
     llvm::SmallString<128> Buffer;
     /* Create a simplistic fixed compilation database out of thin air */
-    std::vector<std::string> CommandLine = {
-        "clang-tool",
-    };
+    std::vector<std::string> CommandLine = { };
 
     /*
      * A common project layout is

@@ -178,7 +178,8 @@ LIBS		:= \
 # as in the CFLAGS / CXXFLAGS
 #
 LDFLAGS		:= \
-		$(shell llvm-config --ldflags)
+		$(shell llvm-config --ldflags)				\
+		-Wl,--gc-sections					\
 
 LDLIBS		:= $(LIBS)
 
