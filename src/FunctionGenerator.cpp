@@ -613,8 +613,7 @@ bool FunctionGenerator::tryWriteReturnStatement(
         auto MethodDecl = clang::dyn_cast<clang::CXXMethodDecl>(FunctionDecl);
 
         if (MethodDecl && !MethodDecl->isStatic()) {
-            auto &ASTContext = MethodDecl->getASTContext();
-            auto ThisType = MethodDecl->getThisType(ASTContext);
+            auto ThisType = MethodDecl->getThisType();
             auto RecordType = ThisType->getPointeeType();
 
             if (util::type::returnAssignmentOk(ReturnType, RecordType)) {

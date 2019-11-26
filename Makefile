@@ -146,29 +146,29 @@ PKGCONF		:= \
 #
 LIBS		:= \
 		-Wl,--start-group					\
-		-lclangAST 						\
+		-lclangAST 							\
 		-lclangBasic						\
 		-lclangFrontend 					\
-		-lclangFrontendTool 					\
+		-lclangFrontendTool 				\
 		-lclangIndex 						\
-		-lclangLex 						\
+		-lclangLex 							\
 		-lclangParse 						\
+		-lclangSerialization 				\
 		-lclangTooling						\
 		-lclangToolingCore					\
 		-Wl,--end-group						\
-		$(shell llvm-config --libs)				\
-		$(shell llvm-config --system-libs)			\
+		$(shell llvm-config --libs)			\
+		$(shell llvm-config --system-libs)	\
 #		-lclangAnalysis 					\
 # 		-lclangASTMatchers					\
 #		-lclangDriver 						\
 #		-lclangEdit 						\
 # 		-lclangFormat						\
 # 		-lclangRewrite						\
-# 		-lclangRewriteFrontend 					\
+# 		-lclangRewriteFrontend 				\
 #		-lclangSema 						\
-#		-lclangSerialization 					\
-# 		-pthread						\
-# 		-lm							\
+# 		-pthread							\
+# 		-lm									\
 # 		-Wl,--start-group					\
 # 		-Wl,--end-group						\
 
@@ -178,37 +178,42 @@ LIBS		:= \
 # as in the CFLAGS / CXXFLAGS
 #
 LDFLAGS		:= \
-		$(shell llvm-config --ldflags)				\
+		$(shell llvm-config --ldflags)		\
 		-Wl,--gc-sections					\
 
 LDLIBS		:= $(LIBS)
 
 
 CPPFLAGS	= \
-		$(DEFS)							\
-		$(INCLUDE)						\
-		-MMD							\
-		-MF $(patsubst %.o,%.d,$@) 				\
-		-MT $@ 							\
+		$(DEFS)								\
+		$(INCLUDE)							\
+		-MMD								\
+		-MF $(patsubst %.o,%.d,$@) 			\
+		-MT $@ 								\
 # 		$(shell llvm-config --cppflags)
 
 #
 # Set additional compiler flags
 #
 CXXFLAGS	:= \
-		-fno-rtti						\
-		$(shell llvm-config --cxxflags)				\
-# 		-std=c++14						\
-# 		-Wall							\
-# 		-Wextra 						\
-# 		-Werror 						\
-# 		-Wpedantic						\
-# 		-Weffc++						\
-# 		-O2 							\
-# 		-g3							\
-# 		-fno-omit-frame-pointer 				\
-#		-fpic							\
-		
+		-fno-rtti							\
+		-fno-exceptions						\
+		-std=c++17							\
+		-fPIC								\
+		-fno-plt							\
+		-fstack-protector-strong			\
+		-march=x86-64						\
+		-mtune=generic						\
+ 		-Wall								\
+ 		-Wextra 							\
+ 		-Wpedantic							\
+# 		-Werror 							\
+# 		-Weffc++							\
+# 		-O2 								\
+# 		-g3									\
+# 		-fno-omit-frame-pointer 			\
+#		-fpic								\
+
 #
 # Check if specified pkg-config libraries are available and abort
 # if they are not.
