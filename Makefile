@@ -318,8 +318,12 @@ $(DIRS):
 
 format:
 	clang-format -i $(HDR) $(SRC)
+
 clean:
 	rm -rf $(TARGET) $(DIRS) 
+
+tags: $(HDR) $(SRC)
+	ctags -f tags $^
 
 install: $(TARGET)
 	cp $(TARGET) $(INSTALL_DIR)
@@ -329,5 +333,17 @@ uninstall:
 	rm -f $(INSTALL_DIR)$(BIN) $(BASH_COMPLETION_TARGET)
 	
 
-.PHONY: all clean install uninstall
-.SILENT: clean $(DIRS)
+.PHONY: \
+	all 												\
+	clean 												\
+	debug 												\
+	install 											\
+	release												\
+	syntax-check 										\
+	uninstall											\
+
+.SILENT: \												\
+	clean 												\
+	format 												\
+	tags 												\
+	$(DIRS)

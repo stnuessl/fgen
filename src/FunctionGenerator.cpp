@@ -715,6 +715,15 @@ bool FunctionGenerator::tryWriteCXXGetAccessor(
      * definition.
      */
 
+    switch (MethodDecl->getKind()) {
+    case clang::Decl::CXXConstructor:
+    case clang::Decl::CXXDestructor:
+    case clang::Decl::CXXConversion:
+        return false;
+    default:
+        break;
+    }
+
     if (!MethodDecl->parameters().empty())
         return false;
 
@@ -730,7 +739,7 @@ bool FunctionGenerator::tryWriteCXXGetAccessor(
          *      ...
          *      };
          *
-         * If we detect this pattern, we fill out the
+         * If we detect the above pattern, we will fill out the
          * non-const version, too.
          */
         auto DeclName = MethodDecl->getDeclName();
@@ -842,6 +851,15 @@ bool FunctionGenerator::tryWriteCXXSetAccessor(
      * Check if the current "MethodDecl" matches with this
      * definition.
      */
+
+    switch (MethodDecl->getKind()) {
+    case clang::Decl::CXXConstructor:
+    case clang::Decl::CXXDestructor:
+    case clang::Decl::CXXConversion:
+        return false;
+    default:
+        break;
+    }
 
     if (MethodDecl->isConst())
         return false;
