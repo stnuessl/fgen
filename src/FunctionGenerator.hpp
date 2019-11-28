@@ -29,6 +29,7 @@
 #include <llvm/Support/raw_ostream.h>
 
 #include <FGenConfiguration.hpp>
+#include <StringStream.hpp>
 
 /*
  * Simple one pass class, which gets used for every valid
@@ -76,7 +77,7 @@ private:
 
     std::vector<const clang::NamespaceDecl *> ActiveNamespaces_;
     std::unordered_set<std::string> Includes_;
-    std::string Output_;
+    StringStream StrStream_;
 
     std::shared_ptr<FGenConfiguration> Configuration_;
 };

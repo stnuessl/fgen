@@ -149,9 +149,8 @@ bestFieldDeclMatch(const clang::RecordDecl *RecordDecl, Pred &&PredFunc)
 }
 
 FunctionGenerator::FunctionGenerator()
-    : ActiveNamespaces_(), Includes_(), Output_(), Configuration_(nullptr)
+    : ActiveNamespaces_(), Includes_(), StrStream_(true), Configuration_(nullptr)
 {
-    Output_.reserve(2048);
 }
 
 void FunctionGenerator::setConfiguration(
@@ -180,7 +179,7 @@ void FunctionGenerator::dump(llvm::raw_ostream &OStream) const
     for (const auto &Include : Includes_)
         OStream << Include << "\n";
 
-    OStream << "\n" << Output_ << "\n";
+    OStream << "\n" << StrStream_.str() << "\n";
 
     /* Close namespaces which are still open */
     auto Size = ActiveNamespaces_.size();
@@ -197,7 +196,7 @@ void FunctionGenerator::clear()
 {
     ActiveNamespaces_.clear();
     Includes_.clear();
-    Output_.clear();
+    StrStream_.reset();
 }
 
 void FunctionGenerator::writeNamespaceDefinitions(
@@ -205,9 +204,6 @@ void FunctionGenerator::writeNamespaceDefinitions(
 {
     if (!Configuration_->namespaceDefinitions())
         return;
-
-    llvm::raw_string_ostream OStream(Output_);
-    OStream.SetUnbuffered();
 
     std::vector<const clang::NamespaceDecl *>::size_type OkIndex = 0;
 
@@ -245,10 +241,10 @@ void FunctionGenerator::writeNamespaceDefinitions(
             ActiveNamespaces_.resize(OkIndex);
 
             while (Size-- > OkIndex)
-                OStream << "}\n";
+                StrStream_ << "}\n";
 
             if (!Configuration_->trimOutput())
-                OStream << '\n';
+                StrStream_ << '\n';
         }
 
         /*
@@ -266,10 +262,10 @@ void FunctionGenerator::writeNamespaceDefinitions(
         ActiveNamespaces_.push_back(NamespaceDecl);
         ++OkIndex;
 
-        OStream << "namespace " << *NamespaceDecl << " {\n";
+        StrStream_ << "namespace " << *NamespaceDecl << " {\n";
 
         if (!Configuration_->trimOutput())
-            OStream << '\n';
+            StrStream_ << '\n';
     }
 
     /* Close namespaces which are no longer present */
@@ -278,10 +274,10 @@ void FunctionGenerator::writeNamespaceDefinitions(
         ActiveNamespaces_.resize(OkIndex);
 
         while (Size-- > OkIndex)
-            OStream << "}\n";
+            StrStream_ << "}\n";
 
         if (!Configuration_->trimOutput())
-            OStream << '\n';
+            StrStream_ << '\n';
     }
 }
 
@@ -316,10 +312,7 @@ void FunctionGenerator::writeTemplateParameters(
 void FunctionGenerator::writeTemplateParameters(
     const clang::TemplateParameterList *List)
 {
-    llvm::raw_string_ostream OStream(Output_);
-    OStream.SetUnbuffered();
-
-    OStream << "template <";
+    StrStream_ << "template <";
 
     auto Begin = List->begin();
     auto End = List->end();
@@ -329,23 +322,23 @@ void FunctionGenerator::writeTemplateParameters(
         auto NonTTPDecl = clang::dyn_cast<clang::NonTypeTemplateParmDecl>(*It);
 
         if (It != Begin)
-            OStream << ", ";
+            StrStream_ << ", ";
 
         if (TTPDecl) {
-            OStream << "typename ";
+            StrStream_ << "typename ";
 
             if (TTPDecl->isParameterPack())
-                OStream << "... ";
+                StrStream_ << "... ";
 
         } else if (NonTTPDecl) {
             auto Policy = NonTTPDecl->getASTContext().getPrintingPolicy();
-            OStream << NonTTPDecl->getType().getAsString(Policy) << " ";
+            StrStream_ << NonTTPDecl->getType().getAsString(Policy) << " ";
         }
 
-        OStream << (*It)->getName();
+        StrStream_ << (*It)->getName();
     }
 
-    OStream << "> ";
+    StrStream_ << "> ";
 }
 
 void FunctionGenerator::writeReturnType(const clang::FunctionDecl *FunctionDecl)
@@ -363,13 +356,10 @@ void FunctionGenerator::writeReturnType(const clang::FunctionDecl *FunctionDecl)
         break;
     }
 
-    llvm::raw_string_ostream OStream(Output_);
-    OStream.SetUnbuffered();
-
     auto QualType = FunctionDecl->getReturnType();
     auto &PrintingPolicy = FunctionDecl->getASTContext().getPrintingPolicy();
 
-    QualType.print(OStream, PrintingPolicy);
+    QualType.print(StrStream_, PrintingPolicy);
 
     /*
      * Output for reference and pointer types:
@@ -379,7 +369,7 @@ void FunctionGenerator::writeReturnType(const clang::FunctionDecl *FunctionDecl)
      *      "type "
      */
     if (!QualType->isReferenceType() && !QualType->isPointerType())
-        OStream << " ";
+        StrStream_ << " ";
 }
 
 void FunctionGenerator::writeFullQualifiedName(
@@ -387,9 +377,6 @@ void FunctionGenerator::writeFullQualifiedName(
 {
     if (ContextVec.empty())
         return;
-
-    llvm::raw_string_ostream OStream(Output_);
-    OStream.SetUnbuffered();
 
     auto &ASTContext = ContextVec[0]->getParentASTContext();
     auto PrintingPolicy = ASTContext.getPrintingPolicy();
@@ -399,7 +386,7 @@ void FunctionGenerator::writeFullQualifiedName(
         auto NamespaceDecl = clang::dyn_cast<clang::NamespaceDecl>(Context);
         if (NamespaceDecl) {
             if (!Configuration_->namespaceDefinitions())
-                OStream << *NamespaceDecl << "::";
+                StrStream_ << *NamespaceDecl << "::";
 
             /*
              * The "writeNamespaceDefinitions()" function took part
@@ -411,26 +398,26 @@ void FunctionGenerator::writeFullQualifiedName(
         auto RecordDecl = clang::dyn_cast<clang::RecordDecl>(Context);
         if (RecordDecl) {
             auto Type = clang::QualType(RecordDecl->getTypeForDecl(), 0);
-            Type.print(OStream, PrintingPolicy);
-            OStream << "::";
+            Type.print(StrStream_, PrintingPolicy);
+            StrStream_ << "::";
             continue;
         }
 
         auto CtorDecl = clang::dyn_cast<clang::CXXConstructorDecl>(Context);
         if (CtorDecl) {
-            OStream << *CtorDecl->getParent();
+            StrStream_ << *CtorDecl->getParent();
             continue;
         }
 
         auto DtorDecl = clang::dyn_cast<clang::CXXDestructorDecl>(Context);
         if (DtorDecl) {
-            OStream << '~' << *DtorDecl->getParent();
+            StrStream_ << '~' << *DtorDecl->getParent();
             continue;
         }
 
         auto FDecl = clang::dyn_cast<clang::FunctionDecl>(Context);
         if (FDecl) {
-            OStream << *FDecl;
+            StrStream_ << *FDecl;
             continue;
         }
     }
@@ -438,12 +425,9 @@ void FunctionGenerator::writeFullQualifiedName(
 
 void FunctionGenerator::writeParameters(const clang::FunctionDecl *FunctionDecl)
 {
-    llvm::raw_string_ostream OStream(Output_);
-    OStream.SetUnbuffered();
-
     auto &PrintingPolicy = FunctionDecl->getASTContext().getPrintingPolicy();
 
-    OStream << "(";
+    StrStream_ << "(";
 
     auto Parameters = FunctionDecl->parameters();
     auto Size = Parameters.size();
@@ -452,9 +436,50 @@ void FunctionGenerator::writeParameters(const clang::FunctionDecl *FunctionDecl)
         auto QualType = Parameters[i]->getType();
 
         if (i > 0)
-            OStream << ", ";
+            StrStream_ << ", ";
 
-        QualType.print(OStream, PrintingPolicy);
+        if (QualType->isFunctionPointerType()) {
+            /*
+             * Function pointer parameters are a little bit special,
+             * as their name is intermangled with the type.
+             */
+            llvm::SmallString<64> Buffer;
+            llvm::raw_svector_ostream BufferStream(Buffer);
+
+            QualType.print(BufferStream, PrintingPolicy);
+
+            auto Index = Buffer.find('*');
+            if (Index == llvm::StringRef::npos) {
+                StrStream_ << "## ERROR ##";
+                continue;
+            }
+            
+            /* 
+             * Given the type
+             *      void (*)(void)
+             *            ^(1)
+             * write everything including the marker position at (1)
+             * to the stream.
+             */
+            StrStream_ << Buffer.substr(0, Index + 1);
+            
+            /* Write the name of the parameter to the stream */
+            auto Name = Parameters[i]->getName();
+            if (Name.empty())
+                StrStream_ << "arg" << i + 1;
+            else
+                StrStream_ << Name;
+
+            /* 
+             * Write everything right of the marker position at (1)
+             * to the stream to retrieve the full parameter declarator.
+             */
+            StrStream_ << Buffer.substr(Index + 1);
+                
+            continue;
+        }
+
+        QualType.print(StrStream_, PrintingPolicy);
 
         /*
          * Output for reference and pointer types:
@@ -465,41 +490,38 @@ void FunctionGenerator::writeParameters(const clang::FunctionDecl *FunctionDecl)
          */
 
         if (!QualType->isReferenceType() && !QualType->isPointerType())
-            OStream << " ";
+            StrStream_ << " ";
 
         auto Name = Parameters[i]->getName();
         if (Name.empty())
-            OStream << "arg" << i + 1;
+            StrStream_ << "arg" << i + 1;
         else
-            OStream << Name;
+            StrStream_ << Name;
     }
     
     if (FunctionDecl->isVariadic()) {
         if (Size)
-            OStream << ", ";
+            StrStream_ << ", ";
         
-        OStream << "...";
+        StrStream_ << "...";
     }
 
-    OStream << ")";
+    StrStream_ << ")";
 }
 
 void FunctionGenerator::writeQualifiers(const clang::FunctionDecl *FunctionDecl)
 {
-    llvm::raw_string_ostream OStream(Output_);
-    OStream.SetUnbuffered();
-
     auto MethodDecl = clang::dyn_cast<clang::CXXMethodDecl>(FunctionDecl);
     if (MethodDecl) {
         if (MethodDecl->isConst())
-            OStream << " const";
+            StrStream_ << " const";
 
         switch (MethodDecl->getRefQualifier()) {
         case clang::RefQualifierKind::RQ_LValue:
-            OStream << " &";
+            StrStream_ << " &";
             break;
         case clang::RefQualifierKind::RQ_RValue:
-            OStream << " &&";
+            StrStream_ << " &&";
             break;
         case clang::RefQualifierKind::RQ_None:
         default:
@@ -507,7 +529,7 @@ void FunctionGenerator::writeQualifiers(const clang::FunctionDecl *FunctionDecl)
         }
     }
 
-    OStream << ' ';
+    StrStream_ << ' ';
 }
 
 void FunctionGenerator::writeBody(const clang::FunctionDecl *FunctionDecl)
@@ -530,14 +552,11 @@ void FunctionGenerator::writeBody(const clang::FunctionDecl *FunctionDecl)
             return;
     }
 
-    llvm::raw_string_ostream OStream(Output_);
-    OStream << "{}";
+    StrStream_ << "{}";
 }
 
 void FunctionGenerator::writeEnding()
 {
-    llvm::raw_string_ostream OStream(Output_);
-    OStream.SetUnbuffered();
     /*
      * The output of 'fgen' is supposed to be piped to 'clang-format'.
      * Sadly, 'clang-format' does not automatically insert an empty line
@@ -545,9 +564,9 @@ void FunctionGenerator::writeEnding()
      * if asked to not do so.
      */
     if (Configuration_->trimOutput())
-        OStream << "\n";
+        StrStream_ << "\n";
     else
-        OStream << "\n\n";
+        StrStream_ << "\n\n";
 }
 
 bool FunctionGenerator::tryWriteConversionStatement(
@@ -568,8 +587,7 @@ bool FunctionGenerator::tryWriteConversionStatement(
     if (!TypeDecl)
         return false;
 
-    llvm::raw_string_ostream OStream(Output_);
-    OStream << "{ return " << TypeDecl->getName() << "; }";
+    StrStream_ << "{ return " << TypeDecl->getName() << "; }";
 
     return true;
 }
@@ -577,35 +595,32 @@ bool FunctionGenerator::tryWriteConversionStatement(
 bool FunctionGenerator::tryWriteReturnStatement(
     const clang::FunctionDecl *FunctionDecl)
 {
-    llvm::raw_string_ostream OStream(Output_);
-    OStream.SetUnbuffered();
-
     auto ReturnType = FunctionDecl->getReturnType();
 
     if (ReturnType->isVoidType())
         return false;
 
     if (ReturnType->isBooleanType()) {
-        OStream << "{ return false; }";
+        StrStream_ << "{ return false; }";
         return true;
     }
 
     if (ReturnType->isIntegerType() || ReturnType->isPointerType()) {
-        OStream << "{ return 0; }";
+        StrStream_ << "{ return 0; }";
         return true;
     }
 
     if (ReturnType->isFloatingType()) {
-        OStream << "{ return 0.0; }";
+        StrStream_ << "{ return 0.0; }";
         return true;
     }
 
     if (util::type::hasDefaultConstructor(ReturnType)) {
         auto &Policy = FunctionDecl->getASTContext().getPrintingPolicy();
 
-        OStream << "{ return ";
-        ReturnType.print(OStream, Policy);
-        OStream << "(); }";
+        StrStream_ << "{ return ";
+        ReturnType.print(StrStream_, Policy);
+        StrStream_ << "(); }";
         return true;
     }
 
@@ -617,7 +632,7 @@ bool FunctionGenerator::tryWriteReturnStatement(
             auto RecordType = ThisType->getPointeeType();
 
             if (util::type::returnAssignmentOk(ReturnType, RecordType)) {
-                OStream << "{ return *this; }";
+                StrStream_ << "{ return *this; }";
                 return true;
             }
         }
@@ -631,9 +646,9 @@ bool FunctionGenerator::tryWriteReturnStatement(
              * Declare a static variable and return it, if the type
              * is default constructible.
              */
-            OStream << "{ static ";
-            NonRefType.print(OStream, Policy);
-            OStream << " stub_dummy_; return stub_dummy_; }";
+            StrStream_ << "{ static ";
+            NonRefType.print(StrStream_, Policy);
+            StrStream_ << " stub_dummy_; return stub_dummy_; }";
 
             return true;
         }
@@ -692,8 +707,7 @@ bool FunctionGenerator::tryWriteCGetAccessor(
     if (!FieldDecl)
         return false;
 
-    llvm::raw_string_ostream OStream(Output_);
-    OStream << "{ return "
+    StrStream_ << "{ return "
             << util::decl::getNameOrDefault(Parameters[0], "arg1") << "->"
             << FieldDecl->getName() << "; }";
 
@@ -774,20 +788,17 @@ bool FunctionGenerator::tryWriteCXXGetAccessor(
 
     bool UseMove = IsRValue && useMoveAssignment(FieldDecl->getType());
 
-    llvm::raw_string_ostream OStream(Output_);
-    OStream.SetUnbuffered();
-
-    OStream << "{ return ";
+    StrStream_ << "{ return ";
 
     if (UseMove)
-        OStream << "std::move(";
+        StrStream_ << "std::move(";
 
-    OStream << FieldDecl->getName();
+    StrStream_ << FieldDecl->getName();
 
     if (UseMove)
-        OStream << ")";
+        StrStream_ << ")";
 
-    OStream << "; }";
+    StrStream_ << "; }";
 
     return true;
 }
@@ -829,8 +840,7 @@ bool FunctionGenerator::tryWriteCSetAccessor(
     if (!FieldDecl)
         return false;
 
-    llvm::raw_string_ostream OStream(Output_);
-    OStream << "{ " << util::decl::getNameOrDefault(Parameters[0], "arg1")
+    StrStream_ << "{ " << util::decl::getNameOrDefault(Parameters[0], "arg1")
             << "->" << FieldDecl->getName() << " = "
             << util::decl::getNameOrDefault(Parameters[1], "arg2") << "; }";
 
@@ -881,23 +891,20 @@ bool FunctionGenerator::tryWriteCXXSetAccessor(
     if (!FieldDecl)
         return false;
 
-    llvm::raw_string_ostream OStream(Output_);
-    OStream.SetUnbuffered();
-
-    OStream << "{ " << FieldDecl->getName() << " = ";
+    StrStream_ << "{ " << FieldDecl->getName() << " = ";
 
     /* Try to use the move assignment operator if available */
     bool UseMove = useMoveAssignment(RHSType);
 
     if (UseMove)
-        OStream << "std::move(";
+        StrStream_ << "std::move(";
 
-    OStream << util::decl::getNameOrDefault(Parameters[0], "arg1");
+    StrStream_ << util::decl::getNameOrDefault(Parameters[0], "arg1");
 
     if (UseMove)
-        OStream << ")";
+        StrStream_ << ")";
 
-    OStream << "; }";
+    StrStream_ << "; }";
 
     return true;
 }
