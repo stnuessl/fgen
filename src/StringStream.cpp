@@ -20,24 +20,23 @@
 
 #include <StringStream.hpp>
 
-StringStream::StringStream(bool Unbuffered, size_t BufferSize) 
+StringStream::StringStream(bool Unbuffered, size_t BufferSize)
     : llvm::raw_ostream(Unbuffered), Buffer_()
 {
     Buffer_.reserve(BufferSize);
 }
 
-
 uint64_t StringStream::current_pos() const
-{ 
+{
     return Buffer_.size();
 }
 
-void StringStream::write_impl(const char *Ptr, size_t Size) 
+void StringStream::write_impl(const char *Ptr, size_t Size)
 {
     Buffer_.append(Ptr, Size);
 }
 
-void StringStream::reset()
+void StringStream::clear()
 {
     Buffer_.clear();
 }

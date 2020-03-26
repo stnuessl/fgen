@@ -30,9 +30,10 @@ public:
     virtual uint64_t current_pos() const override;
     virtual void write_impl(const char *Ptr, size_t Size) override;
 
-    void reset();
+    void clear();
 
     const std::string &str() const;
+
 private:
     std::string Buffer_;
 };

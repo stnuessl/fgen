@@ -23,8 +23,8 @@
 # THE SOFTWARE.
 #
 
-CC 		:= /usr/bin/gcc
-CXX		:= /usr/bin/g++
+CC		:= /usr/bin/clang
+CXX		:= /usr/bin/clang++
 
 #
 # Show / suppress compiler invocations. 
@@ -36,7 +36,7 @@ SUPP		:=
 #
 # Set name of the binary
 #
-BIN		:= fgen 
+BIN			:= fgen
 
 # Need to install / deinstall the bash completion
 BASH_COMPLETION_SRC	:= bash-completion/fgen
@@ -53,7 +53,7 @@ endif
 # SRC 		:= $(shell find ./ -iname "*.c")
 SRC 		:= $(shell find src/ -iname "*.cpp")
 # SRC 		:= $(shell find ./ -iname "*.c" -o -iname "*.cpp")
-HDR		:= $(shell find src/ -iname "*.hpp")
+HDR			:= $(shell find src/ -iname "*.hpp")
 
 ifndef SRC
 $(error No source files specified)
@@ -89,7 +89,7 @@ endif
 # even worse 'build/src/../../relative' which would be a path outside of
 # the specified build directory
 #
-SRC		:= $(filter-out ../%, $(SRC)) $(notdir $(RELPATHS))
+SRC			:= $(filter-out ../%, $(SRC)) $(notdir $(RELPATHS))
 VPATH		:= $(subst $(SPACE),:, $(dir $(RELPATHS)))
 endif
 
@@ -101,33 +101,43 @@ BUILDDIR	:= build
 TARGET 		:= $(BUILDDIR)/$(BIN)
 
 #
-# Set installation directory used in 'make install'
+# Set installation directory used in 'make install'.
+# It is essential to place clang related tools in "/usr/bin"
+# as they expect their builtin headers relative to this directory.
 #
-INSTALL_DIR	:= /usr/local/bin/
+INSTALL_DIR	:= /usr/bin/
 
 #
 # Generate all object and dependency files from $(SRC) and get
 # a list of all inhabited directories. 'AUX' is used to prevent file paths
 # like build/objs/./srcdir/
 #
-AUX		:= $(patsubst ./%, %, $(SRC))
+AUX			:= $(patsubst ./%, %, $(SRC))
 C_SRC		:= $(filter %.c, $(AUX))
 CXX_SRC		:= $(filter %.cpp, $(AUX))
 C_OBJS		:= $(addprefix $(BUILDDIR)/, $(patsubst %.c, %.o, $(C_SRC)))
 CXX_OBJS	:= $(addprefix $(BUILDDIR)/, $(patsubst %.cpp, %.o, $(CXX_SRC)))
 OBJS		:= $(C_OBJS) $(CXX_OBJS)
-DEPS		:= $(patsubst %.o, %.d, $(OBJS))
 DIRS		:= $(BUILDDIR) $(sort $(dir $(OBJS)))
+
+#
+# Define dependency and JSON compilation database files.
+#
+DEPS		:= $(patsubst %.o, %.d, $(OBJS))
+JSON		:= $(patsubst %.o, %.json, $(OBJS))
+
 
 #
 # Add additional preprocessor definitions
 #
 DEFS		:= \
-#		-D_GNU_SOURCE						\
-#		-DNDEBUG						\
+#		-D_GNU_SOURCE \
+#		-DNDEBUG \
 
 #
-# Add additional include paths
+# Add additional include paths. The "/usr/lib/clang/x.x.x/include" directory
+# makes it easy to use clang-tools on the software build with this Makefile.
+# 
 #
 INCLUDE		:= \
 		-I./src
@@ -136,41 +146,41 @@ INCLUDE		:= \
 # Add used libraries which are configurable with pkg-config
 #
 PKGCONF		:= \
-# 		gstreamer-1.0						\
-# 		gstreamer-pbutils-1.0					\
-# 		libcurl							\
-# 		libxml-2.0						\
+# 		gstreamer-1.0 \
+# 		gstreamer-pbutils-1.0 \
+# 		libcurl \
+# 		libxml-2.0 \
 
 #
 # Set non-pkg-configurable libraries flags 
 #
 LIBS		:= \
-		-Wl,--start-group					\
-		-lclangAST 							\
-		-lclangBasic						\
-		-lclangFrontend 					\
-		-lclangFrontendTool 				\
-		-lclangIndex 						\
-		-lclangLex 							\
-		-lclangParse 						\
-		-lclangSerialization 				\
-		-lclangTooling						\
-		-lclangToolingCore					\
-		-Wl,--end-group						\
-		$(shell llvm-config --libs)			\
-		$(shell llvm-config --system-libs)	\
-#		-lclangAnalysis 					\
-# 		-lclangASTMatchers					\
-#		-lclangDriver 						\
-#		-lclangEdit 						\
-# 		-lclangFormat						\
-# 		-lclangRewrite						\
-# 		-lclangRewriteFrontend 				\
-#		-lclangSema 						\
-# 		-pthread							\
-# 		-lm									\
-# 		-Wl,--start-group					\
-# 		-Wl,--end-group						\
+		-Wl,--start-group \
+		-lclangAST \
+		-lclangBasic \
+		-lclangFrontend \
+		-lclangFrontendTool \
+		-lclangIndex \
+		-lclangLex \
+		-lclangParse \
+		-lclangSerialization \
+		-lclangTooling \
+		-lclangToolingCore \
+		-Wl,--end-group \
+		$(shell llvm-config --libs) \
+		$(shell llvm-config --system-libs) \
+#		-lclangAnalysis \
+# 		-lclangASTMatchers \
+#		-lclangDriver \
+#		-lclangEdit \
+# 		-lclangFormat \
+# 		-lclangRewrite \
+# 		-lclangRewriteFrontend \
+#		-lclangSema \
+# 		-pthread \
+# 		-lm \
+# 		-Wl,--start-group \
+# 		-Wl,--end-group \
 
 #
 # Set linker flags, here: 'rpath' for libraries in non-standard directories
@@ -178,41 +188,46 @@ LIBS		:= \
 # as in the CFLAGS / CXXFLAGS
 #
 LDFLAGS		:= \
-		$(shell llvm-config --ldflags)		\
-		-Wl,--gc-sections					\
+		$(shell llvm-config --ldflags)
 
 LDLIBS		:= $(LIBS)
 
 
 CPPFLAGS	= \
-		$(DEFS)								\
-		$(INCLUDE)							\
-		-MMD								\
-		-MF $(patsubst %.o,%.d,$@) 			\
-		-MT $@ 								\
+		$(DEFS) \
+		$(INCLUDE) \
+		-MMD \
+		-MF $(patsubst %.o,%.d,$@) \
+		-MT $@ \
 # 		$(shell llvm-config --cppflags)
+
+# If clang is used, generate a compilation database for each
+# translation unit. 
+ifeq (clang, $(findstring clang, $(CC) $(CXX)))
+CPPFLAGS	+= -MJ $(patsubst %.o, %.json, $@)
+endif
 
 #
 # Set additional compiler flags
 #
 CXXFLAGS	:= \
-		-fno-rtti							\
-		-fno-exceptions						\
-		-std=c++17							\
-		-fPIC								\
-		-fno-plt							\
-		-fstack-protector-strong			\
-		-march=x86-64						\
-		-mtune=generic						\
- 		-Wall								\
- 		-Wextra 							\
- 		-Wpedantic							\
-# 		-Werror 							\
-# 		-Weffc++							\
-# 		-O2 								\
-# 		-g3									\
-# 		-fno-omit-frame-pointer 			\
-#		-fpic								\
+		-fno-rtti \
+		-fno-exceptions \
+		-std=c++17 \
+		-fPIC \
+		-fno-plt \
+		-fstack-protector-strong \
+		-march=x86-64 \
+		-mtune=generic \
+ 		-Wall \
+ 		-Wextra \
+ 		-Wpedantic \
+# 		-Werror \
+# 		-Weffc++ \
+# 		-O2 \
+# 		-g3 \
+# 		-fno-omit-frame-pointer \
+#		-fpic \
 
 #
 # Check if specified pkg-config libraries are available and abort
@@ -235,46 +250,38 @@ endif
 
 
 #
-# Setting some terminal colors
+# Setting terminal colors. 
 #
-RED		:= \e[0;31m
-GREEN		:= \e[0;32m
-BROWN		:= \e[0;33m
-BLUE		:= \e[0;34m
-MAGENTA		:= \e[0;35m
-CYAN		:= \e[0;36m
-BOLD_RED	:= \e[1;31m
-BOLD_GREEN	:= \e[1;32m
-BOLD_YELLOW  	:= \e[1;33m
-BOLD_BLUE	:= \e[1;34m
-BOLD_MAGENTA	:= \e[1;35m
-BOLD_CYAN	:= \e[1;36m
-DEFAULT_COLOR 	:= \e[0m
+RED			:= \e[1;31m
+GREEN		:= \e[1;32m
+YELLOW		:= \e[1;33m
+BLUE		:= \e[1;34m
+MAGENTA		:= \e[1;35m
+CYAN		:= \e[1;36m
+RESET		:= \e[0m
 
-COLOR_COMPILING	:= $(BOLD_BLUE)
-COLOR_LINKING	:= $(BOLD_YELLOW)
-COLOR_FINISHED	:= $(BOLD_GREEN)
-
-print 		= @printf "$(1)$(2)$(DEFAULT_COLOR)\n"
-md5sum 		= $$(md5sum $(1) | cut -f1 -d " ")
+#
+# Get the MD5 hash value of a file passed as an argument.
+#
+md5sum		= $$(md5sum $(1) | cut -f1 -d " ")
 
 # release: CPPFLAGS	+= -DNDEBUG
-release: CFLAGS 	+= -O3 -flto
-release: CXXFLAGS 	+= -O3 -flto
-release: LDFLAGS 	+= -O3 -flto
+release: CFLAGS		+= -O3 -flto -fdata-sections -ffunction-sections
+release: CXXFLAGS	+= -O3 -flto -fdata-sections -ffunction-sections
+release: LDFLAGS	+= -O3 -flto -Wl,--gc-sections
 release: $(TARGET)
 
 debug: CFLAGS		+= -Og -g2
-debug: CXXFLAGS 	+= -Og -g2
+debug: CXXFLAGS		+= -Og -g2
 debug: $(TARGET)
 
 SANITIZERS	:= \
-		with-addr-sanitizer 				\
-		with-mem-sanitizer 				\
-		with-thread-sanitizer				\
+		with-addr-sanitizer \
+		with-mem-sanitizer \
+		with-thread-sanitizer \
 		with-ub-sanitizer
 
-$(SANITIZERS): CXXFLAGS 	+= -O1 -g2 -fno-omit-frame-pointer
+$(SANITIZERS): CXXFLAGS			+= -O1 -g2 -fno-omit-frame-pointer
 
 with-addr-sanitizer: CXXFLAGS 	+= -fsanitize=address
 with-addr-sanitizer: LDFLAGS  	+= -fsanitize=address
@@ -300,15 +307,14 @@ syntax-check: $(OBJS)
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(call print,$(COLOR_LINKING),Linking [ $@ ])
+	@printf "$(YELLOW)Linking [ $@ ]$(RESET)\n"
 	$(SUPP)$(CXX) -o $@ $^ $(LDFLAGS) $(LDLIBS)
-	$(call print,$(COLOR_FINISHED),Built target [ $@ ]: $(call md5sum,$@))
-	
+	@printf "$(GREEN)Built target [ $@ ]: $(call md5sum, $@)$(RESET)\n"
 
 -include $(DEPS)
-	
+
 $(BUILDDIR)/%.o: %.cpp
-	$(call print,$(COLOR_COMPILING),Building: $@)
+	@printf "$(BLUE)Building: $@$(RESET)\n"
 	$(SUPP)$(CXX) -c -o $@ $(CPPFLAGS) $(CXXFLAGS) $<
 
 $(OBJS): | $(DIRS)
@@ -316,11 +322,14 @@ $(OBJS): | $(DIRS)
 $(DIRS):
 	mkdir -p $(DIRS)
 
+compile_commands.json: $(OBJS)
+	sed -e '1s/^/[/' -e '$$s/,\s*$$/]/' $(JSON) | json_pp > $@
+
 format:
 	clang-format -i $(HDR) $(SRC)
 
 clean:
-	rm -rf $(TARGET) $(DIRS) 
+	rm -rf $(TARGET) $(DIRS) $(COMPDB)
 
 tags: $(HDR) $(SRC)
 	ctags -f tags $^
@@ -334,16 +343,18 @@ uninstall:
 	
 
 .PHONY: \
-	all 												\
-	clean 												\
-	debug 												\
-	install 											\
-	release												\
-	syntax-check 										\
-	uninstall											\
+	all \
+	clean \
+	debug \
+	format \
+	install \
+	release \
+	syntax-check \
+	uninstall \
 
-.SILENT: \												\
-	clean 												\
-	format 												\
-	tags 												\
+.SILENT: \
+	clean \
+	compile_commands.json \
+	format \
+	tags \
 	$(DIRS)
