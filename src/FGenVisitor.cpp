@@ -76,6 +76,10 @@ void FGenVisitor::VisitFunctionDeclImpl(const clang::FunctionDecl *FunctionDecl)
     if (!isTarget(FunctionDecl))
         return;
 
+    /* Header files may contain function definitions. Skip them. */
+    if (FunctionDecl->hasBody())
+        return;
+
     /*
      * Not sure if this is really necessary:
      * The idea is to avoid to print the same function skeleton
