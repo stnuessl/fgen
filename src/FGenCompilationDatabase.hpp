@@ -23,41 +23,16 @@
 
 #include <clang/Tooling/CompilationDatabase.h>
 
-/*
- * A compilation database which transparently acts as a JSON compilation
- * database and a fixed compilation database at the same time.
- * If a compile command for a requested source file is found in the
- * JSON compilation database it will be the returned. Otherwise,
- * a fixed compile command will be used.
- *
- * This is helpful as "fgen" is intended to be
- * run mostly on header files. These files normally will not appear in
- * json compilation databases so we need a good fallback solution.
- */
-
-class FGenCompilationDatabase : public clang::tooling::CompilationDatabase {
+class FGenCompilationDatabase {
 public:
-    FGenCompilationDatabase(
-        std::unique_ptr<clang::tooling::CompilationDatabase> JSONDatabase,
-        std::unique_ptr<clang::tooling::CompilationDatabase> FixedDatabase);
+    FGenCompilationDatabase() = default;
 
-    virtual std::vector<clang::tooling::CompileCommand>
-    getCompileCommands(llvm::StringRef File) const override;
+    bool autoDetect(llvm::StringRef Path, std::string &ErrMsg);
 
-    virtual std::vector<std::string> getAllFiles() const override;
-
-    virtual std::vector<clang::tooling::CompileCommand>
-    getAllCompileCommands() const override;
-
-    static std::unique_ptr<clang::tooling::CompilationDatabase>
-    loadFromFile(llvm::StringRef File, std::string &ErrMsg);
-
-    static std::unique_ptr<clang::tooling::CompilationDatabase>
-    autoDetectFromSource(llvm::StringRef SourceFile, std::string &ErrMsg);
+    const clang::tooling::CompilationDatabase &get() const;
 
 private:
-    std::unique_ptr<clang::tooling::CompilationDatabase> JSONDatabase_;
-    std::unique_ptr<clang::tooling::CompilationDatabase> FixedDatabase_;
+    std::unique_ptr<clang::tooling::CompilationDatabase> Database_;
 };
 
 #endif /* FGEN_FGENCOMPILATIONDATABASE_HPP_ */
