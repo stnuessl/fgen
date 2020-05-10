@@ -18,17 +18,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef CALLBACKS_HPP_
-#define CALLBACKS_HPP_
+#ifndef RETURN_HPP_
+#define RETURN_HPP_
 
-#include <functional>
+auto f() -> int;
 
-void f(int (*callback)(int, int));
+int g();
 
-void f(int (&callback)(int, int));
+template <typename T>
+auto h(const T &x) -> decltype(x);
 
-void f(std::function<int(int, int)> callback);
-
-void (*g())(int, int);
-
-#endif /* CALLBACK_HPP_ */
+#endif /* RETURN_HPP_ */

@@ -54,39 +54,41 @@ clang::QualType getNonConstNonReferenceType(clang::QualType Type)
     return removeConst(Type.getNonReferenceType());
 }
 
-bool returnAssignmentOk(clang::QualType Type1, clang::QualType Type2)
+bool returnAssignmentOk(clang::QualType LHS, clang::QualType RHS)
 {
     /*
-     * Perform a check if type2 can be assigned to type1 without a
+     * Perform a check if "RHS" can be assigned to "LHS" without a
      * warning or error during compilation.
      */
 
-    if (Type1->isPointerType() || Type1->isReferenceType()) {
+    if (LHS->isPointerType() || LHS->isReferenceType()) {
         /*
          * You can assign both, const and non-const values to a const reference
          * or pointer, but you cannot assign a const reference or pointer type
-         * to a * non-const type of the same kind.
+         * to a non-const type of the same kind.
          *
          * Assigning an inherited class to its base class is not considered.
          */
-        bool ConstOk = Type1.isConstQualified() || !Type2.isConstQualified();
-        Type1 = getNonConstNonReferenceType(Type1).getCanonicalType();
-        Type2 = getNonConstNonReferenceType(Type2).getCanonicalType();
+        bool ConstOk = LHS.isConstQualified() || !RHS.isConstQualified();
 
-        return Type1 == Type2 && ConstOk;
+        LHS = getNonConstNonReferenceType(LHS).getCanonicalType();
+        RHS= getNonConstNonReferenceType(LHS).getCanonicalType();
+
+        return LHS == RHS && ConstOk;
     }
 
-    return Type1.getCanonicalType() == Type2.getCanonicalType();
+    return LHS.getCanonicalType() == RHS.getCanonicalType();
 }
 
-bool variableAssignmentOk(clang::QualType Type1, clang::QualType Type2)
+bool variableAssignmentOk(clang::QualType LHS, clang::QualType RHS)
 {
-    bool Type1Const = Type1.isConstQualified();
+    bool LHSIsConst = LHS.isConstQualified();
 
-    if (Type1Const && !Type1->isPointerType() && !Type1->isReferenceType())
+    /* Assignments to const pointers / references are possible. */
+    if (LHSIsConst && !LHS->isPointerType() && !LHS->isReferenceType())
         return false;
 
-    return returnAssignmentOk(Type1, Type2);
+    return returnAssignmentOk(LHS, RHS);
 }
 
 bool hasDefaultConstructor(const clang::QualType Type)
@@ -99,14 +101,11 @@ bool hasDefaultConstructor(const clang::QualType Type)
     if (!Decl)
         return false;
 
-    auto Begin = Decl->ctor_begin();
-    auto End = Decl->ctor_end();
-
     auto Pred = [](const clang::CXXConstructorDecl *CtorDecl) {
         return CtorDecl->isDefaultConstructor() && !CtorDecl->isDeleted();
     };
 
-    return std::any_of(Begin, End, Pred);
+    return llvm::any_of(Decl->ctors(), Pred);
 }
 
 bool hasMoveAssignment(const clang::QualType Type)
@@ -119,14 +118,12 @@ bool hasMoveAssignment(const clang::QualType Type)
     if (!Decl)
         return false;
 
-    auto Begin = Decl->method_begin();
-    auto End = Decl->method_end();
-
     auto Pred = [](const clang::CXXMethodDecl *MDecl) {
         return MDecl->isMoveAssignmentOperator() && !MDecl->isDeleted();
     };
 
-    return std::any_of(Begin, End, Pred);
+    return llvm::any_of(Decl->methods(), Pred);
 }
+
 }
 }

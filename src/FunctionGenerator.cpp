@@ -70,7 +70,7 @@ static llvm::StringRef extractRelevantSection(llvm::StringRef Name)
     return TrimmedName;
 }
 
-template<typename Pred>
+template <typename Pred>
 static const clang::FieldDecl *bestFieldDeclMatch(
     const clang::RecordDecl *RecordDecl, llvm::StringRef Name, Pred &&PredFunc)
 {
@@ -82,12 +82,27 @@ static const clang::FieldDecl *bestFieldDeclMatch(
     if (RecordDecl->field_empty())
         return nullptr;
 
+    if (Name.startswith_lower("set")) {
+        auto Range = RecordDecl->fields();
+
+        if (std::distance(Range.begin(), Range.end()) == 1) {
+            auto FieldType = (*Range.begin())->getType();
+
+            if (util::decl::isSingleBit(*Range.begin()))
+                FieldType = (*Range.begin())->getASTContext().BoolTy;
+
+            if (PredFunc(FieldType))
+                return *Range.begin();
+            else
+                return nullptr;
+        }
+    }
+
     Name = extractRelevantSection(Name);
-    auto MaxEditDistance = Name.size();
-    auto NameSize = static_cast<int>(Name.size());
+    auto NameSize = Name.size();
 
     const clang::FieldDecl *BestMatch = nullptr;
-    unsigned int BestEditDistance = MaxEditDistance;
+    auto BestEditDistance = NameSize;
 
     for (const auto &FieldDecl : RecordDecl->fields()) {
         auto FieldType = FieldDecl->getType();
@@ -104,10 +119,12 @@ static const clang::FieldDecl *bestFieldDeclMatch(
         /*
          * The "edit_distance" function below is O(m*n) where
          * m and n are the respective string sizes. We try to shortcut it
-         * for names that cannot possibly be have a smaller edit distance
-         * with this simple comparison.
+         * for names that cannot possibly have a smaller edit distance
+         * with this comparison.
          */
-        if (std::abs(NameSize - FieldNameSize) > BestEditDistance)
+        auto Diff = static_cast<int>(NameSize - FieldNameSize);
+        
+        if (std::abs(Diff) > static_cast<int>(BestEditDistance))
             continue;
 
         auto Distance = Name.edit_distance(FieldName, true, BestEditDistance);
@@ -149,9 +166,11 @@ bestFieldDeclMatch(const clang::RecordDecl *RecordDecl, Pred &&PredFunc)
 }
 
 FunctionGenerator::FunctionGenerator()
-    : ActiveNamespaces_(), Includes_(), StrStream_(true), Configuration_(nullptr)
-{
-}
+    : ActiveNamespaces_(),
+      Includes_(),
+      StrStream_(true),
+      Configuration_(nullptr)
+{}
 
 void FunctionGenerator::setConfiguration(
     std::shared_ptr<FGenConfiguration> Configuration)
@@ -162,14 +181,25 @@ void FunctionGenerator::setConfiguration(
 void FunctionGenerator::add(const clang::FunctionDecl *FunctionDecl)
 {
     llvm::SmallVector<const clang::DeclContext *, 8> ContextVec;
-    util::decl::getFullContext(FunctionDecl, ContextVec);
 
+    util::decl::getFullContext(FunctionDecl, ContextVec);
+    
     writeNamespaceDefinitions(ContextVec);
     writeTemplateParameters(FunctionDecl);
-    writeReturnType(FunctionDecl);
-    writeFullQualifiedName(ContextVec);
-    writeParameters(FunctionDecl);
-    writeQualifiers(FunctionDecl);
+
+    if (util::decl::hasTrailingReturnType(FunctionDecl)) {
+        writeTrailingFunctionStart();
+        writeFullQualifiedName(ContextVec);
+        writeParameters(FunctionDecl);
+        writeQualifiers(FunctionDecl);
+        writeTrailingReturnType(FunctionDecl);
+    } else {
+        writeReturnType(FunctionDecl);
+        writeFullQualifiedName(ContextVec);
+        writeParameters(FunctionDecl);
+        writeQualifiers(FunctionDecl);
+    }
+
     writeBody(FunctionDecl);
     writeEnding();
 }
@@ -196,7 +226,7 @@ void FunctionGenerator::clear()
 {
     ActiveNamespaces_.clear();
     Includes_.clear();
-    StrStream_.reset();
+    StrStream_.clear();
 }
 
 void FunctionGenerator::writeNamespaceDefinitions(
@@ -343,18 +373,8 @@ void FunctionGenerator::writeTemplateParameters(
 
 void FunctionGenerator::writeReturnType(const clang::FunctionDecl *FunctionDecl)
 {
-    /*
-     * For some types of function definitions the return type
-     * does not get written.
-     */
-    switch (FunctionDecl->getKind()) {
-    case clang::Decl::CXXConstructor:
-    case clang::Decl::CXXDestructor:
-    case clang::Decl::CXXConversion:
+    if (!util::decl::hasReturnType(FunctionDecl))
         return;
-    default:
-        break;
-    }
 
     auto QualType = FunctionDecl->getReturnType();
     auto &PrintingPolicy = FunctionDecl->getASTContext().getPrintingPolicy();
@@ -370,6 +390,26 @@ void FunctionGenerator::writeReturnType(const clang::FunctionDecl *FunctionDecl)
      */
     if (!QualType->isReferenceType() && !QualType->isPointerType())
         StrStream_ << " ";
+}
+
+void FunctionGenerator::writeTrailingFunctionStart()
+{
+    StrStream_ << "auto ";
+}
+
+void FunctionGenerator::writeTrailingReturnType(const clang::FunctionDecl *FunctionDecl)
+{
+    if (!util::decl::hasReturnType(FunctionDecl))
+        return;
+
+    StrStream_ << "-> ";
+
+    auto QualType = FunctionDecl->getReturnType();
+    auto &PrintingPolicy = FunctionDecl->getASTContext().getPrintingPolicy();
+
+    QualType.print(StrStream_, PrintingPolicy);
+
+    StrStream_ << " ";
 }
 
 void FunctionGenerator::writeFullQualifiedName(
@@ -388,10 +428,6 @@ void FunctionGenerator::writeFullQualifiedName(
             if (!Configuration_->namespaceDefinitions())
                 StrStream_ << *NamespaceDecl << "::";
 
-            /*
-             * The "writeNamespaceDefinitions()" function took part
-             * of the else case here.
-             */
             continue;
         }
 
@@ -432,77 +468,62 @@ void FunctionGenerator::writeParameters(const clang::FunctionDecl *FunctionDecl)
     auto Parameters = FunctionDecl->parameters();
     auto Size = Parameters.size();
 
-    for (std::size_t i = 0; i < Size; ++i) {
+    for (size_t i = 0; i < Size; ++i) {
+        llvm::SmallString<64> Buffer;
+        llvm::raw_svector_ostream BufferStream(Buffer);
+
+        auto Name = Parameters[i]->getName();
         auto QualType = Parameters[i]->getType();
 
         if (i > 0)
             StrStream_ << ", ";
 
-        if (QualType->isFunctionPointerType()) {
-            /*
-             * Function pointer parameters are a little bit special,
-             * as their name is intermangled with the type.
-             */
-            llvm::SmallString<64> Buffer;
-            llvm::raw_svector_ostream BufferStream(Buffer);
-
-            QualType.print(BufferStream, PrintingPolicy);
-
-            auto Index = Buffer.find('*');
-            if (Index == llvm::StringRef::npos) {
-                StrStream_ << "## ERROR ##";
-                continue;
-            }
-            
-            /* 
-             * Given the type
-             *      void (*)(void)
-             *            ^(1)
-             * write everything including the marker position at (1)
-             * to the stream.
-             */
-            StrStream_ << Buffer.substr(0, Index + 1);
-            
-            /* Write the name of the parameter to the stream */
-            auto Name = Parameters[i]->getName();
-            if (Name.empty())
-                StrStream_ << "arg" << i + 1;
-            else
-                StrStream_ << Name;
-
-            /* 
-             * Write everything right of the marker position at (1)
-             * to the stream to retrieve the full parameter declarator.
-             */
-            StrStream_ << Buffer.substr(Index + 1);
-                
-            continue;
-        }
-
-        QualType.print(StrStream_, PrintingPolicy);
-
-        /*
-         * Output for reference and pointer types:
-         *      "type &"
-         *      "type *"
-         * Output for other types:
-         *      "type "
+        /* 
+         * QualTypes can look like this when written to a stream:
+         *      1)  "type"
+         *      2)  "type *" / "type &"
+         *      3)  type (*)(...)
+         *
+         * Here is the rough overall approach for writing a parameter 
+         * to the stream:
+         *
+         *      1) Split the type strings (see above) in two parts at the 
+         *          last '*' or '&' character. If there is no such character
+         *          there is only one part which covers the whole type string.
+         *      2) Write the first part of the type the stream.
+         *      3) Write the parameter name to the stream.
+         *      4) Write the second part of the type to the stream.
          */
 
-        if (!QualType->isReferenceType() && !QualType->isPointerType())
-            StrStream_ << " ";
+        QualType.print(BufferStream, PrintingPolicy);
 
-        auto Name = Parameters[i]->getName();
+        /* Check if we have a pointer or reference type. */
+        auto Index = Buffer.find_last_of("*&");
+        if (Index != llvm::StringRef::npos)
+            ++Index;
+
+        /* Handle the first (and maybe only) part of the type string. */
+        StrStream_ << Buffer.substr(0, Index);
+
+        /* Append a space to non-pointer and non reference types */
+        if (Index == llvm::StringRef::npos)
+            StrStream_ << ' ';
+
+        /* Handle with the parameter name. */
         if (Name.empty())
             StrStream_ << "arg" << i + 1;
         else
             StrStream_ << Name;
+
+        /* If necessary, handle the second part of the type string. */
+        if (Index < Buffer.size())
+            StrStream_ << Buffer.substr(Index);
     }
-    
+
     if (FunctionDecl->isVariadic()) {
         if (Size)
             StrStream_ << ", ";
-        
+
         StrStream_ << "...";
     }
 
@@ -708,8 +729,8 @@ bool FunctionGenerator::tryWriteCGetAccessor(
         return false;
 
     StrStream_ << "{ return "
-            << util::decl::getNameOrDefault(Parameters[0], "arg1") << "->"
-            << FieldDecl->getName() << "; }";
+               << util::decl::getNameOrDefault(Parameters[0], "arg1") << "->"
+               << FieldDecl->getName() << "; }";
 
     return true;
 }
@@ -741,35 +762,35 @@ bool FunctionGenerator::tryWriteCXXGetAccessor(
     if (!MethodDecl->parameters().empty())
         return false;
 
-    if (!MethodDecl->isConst()) {
-        /*
-         * Check if there is an const overload of this function.
-         * The following pattern is quite common in C++:
-         *
-         *      class a {
-         *      ...
-         *          b &get();
-         *          const b& get() const;
-         *      ...
-         *      };
-         *
-         * If we detect the above pattern, we will fill out the
-         * non-const version, too.
-         */
-        auto DeclName = MethodDecl->getDeclName();
-        auto Candidates = MethodDecl->getLookupParent()->lookup(DeclName);
-
-        auto Pred = [](const clang::NamedDecl *Decl) {
-            auto MethodDecl = clang::dyn_cast<clang::CXXMethodDecl>(Decl);
-            if (!MethodDecl)
-                return false;
-
-            return MethodDecl->isConst() && MethodDecl->parameters().empty();
-        };
-
-        if (llvm::none_of(Candidates, Pred))
-            return false;
-    }
+//    if (!MethodDecl->isConst()) {
+//        /*
+//         * Check if there is an const overload of this function.
+//         * The following pattern is quite common in C++:
+//         *
+//         *      class a {
+//         *      ...
+//         *          b &get();
+//         *          const b& get() const;
+//         *      ...
+//         *      };
+//         *
+//         * If we detect the above pattern, we will fill out the
+//         * non-const version, too.
+//         */
+//        auto DeclName = MethodDecl->getDeclName();
+//        auto Candidates = MethodDecl->getLookupParent()->lookup(DeclName);
+//
+//        auto Pred = [](const clang::NamedDecl *Decl) {
+//            auto MethodDecl = clang::dyn_cast<clang::CXXMethodDecl>(Decl);
+//            if (!MethodDecl)
+//                return false;
+//
+//            return MethodDecl->isConst() && MethodDecl->parameters().empty();
+//        };
+//
+//        if (llvm::none_of(Candidates, Pred))
+//            return false;
+//    }
 
     auto RecordDecl = MethodDecl->getParent();
     auto Name = MethodDecl->getName();
@@ -841,8 +862,8 @@ bool FunctionGenerator::tryWriteCSetAccessor(
         return false;
 
     StrStream_ << "{ " << util::decl::getNameOrDefault(Parameters[0], "arg1")
-            << "->" << FieldDecl->getName() << " = "
-            << util::decl::getNameOrDefault(Parameters[1], "arg2") << "; }";
+               << "->" << FieldDecl->getName() << " = "
+               << util::decl::getNameOrDefault(Parameters[1], "arg2") << "; }";
 
     return true;
 }
@@ -882,9 +903,14 @@ bool FunctionGenerator::tryWriteCXXSetAccessor(
     auto RecordDecl = MethodDecl->getParent();
     auto Name = MethodDecl->getName();
 
-    const auto RHSType = Parameters[0]->getType();
-    auto TypePred = [RHSType](clang::QualType FieldType) {
-        return util::type::variableAssignmentOk(FieldType, RHSType);
+    auto RHSType = Parameters[0]->getType();
+
+    /* Treat rvalue references as value types */
+    if (RHSType->isRValueReferenceType())
+        RHSType = RHSType.getNonReferenceType();
+
+    auto TypePred = [RHSType](clang::QualType LHSType) {
+        return util::type::variableAssignmentOk(LHSType, RHSType);
     };
 
     auto FieldDecl = bestFieldDeclMatch(RecordDecl, Name, TypePred);
@@ -927,7 +953,10 @@ bool FunctionGenerator::useMoveAssignment(clang::QualType Type)
     if (!Configuration_->allowMove())
         return false;
 
-    if (!util::type::hasMoveAssignment(Type))
+    if (Type->isPointerType() || Type->isReferenceType())
+        return false;
+
+    if (!Type->isTemplateTypeParmType() && !util::type::hasMoveAssignment(Type))
         return false;
 
     return addInclude("#include <utility>");
@@ -935,10 +964,7 @@ bool FunctionGenerator::useMoveAssignment(clang::QualType Type)
 
 bool FunctionGenerator::addInclude(std::string Include)
 {
-    std::unordered_set<std::string>::iterator It;
-    bool Ok;
-
-    std::tie(It, Ok) = Includes_.insert(std::move(Include));
+    const auto &[It, Ok] = Includes_.insert(std::move(Include));
 
     return Ok || It != Includes_.end();
 }

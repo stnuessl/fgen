@@ -239,7 +239,7 @@ bool operator==(const ns::example &lhs, const ns::example &rhs);
 ```
 
 By default most of the useful __fgen__ options are already enabled. For the 
-sake of simplicity, we will turn those options of manually and then reenable
+sake of simplicity, we will turn those options off manually and then reenable
 them one after the other to understand what they do. The only exception is
 "-ftrim", which will be used consistently to get a terse output. For the same
 reason, we will not pipe the output to 

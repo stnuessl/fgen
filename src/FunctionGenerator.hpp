@@ -54,6 +54,8 @@ private:
     void writeTemplateParameters(const clang::FunctionDecl *FunctionDecl);
     void writeTemplateParameters(const clang::TemplateParameterList *List);
     void writeReturnType(const clang::FunctionDecl *FunctionDecl);
+    void writeTrailingFunctionStart();
+    void writeTrailingReturnType(const clang::FunctionDecl *FunctionDecl);
     void writeFullQualifiedName(
         const llvm::SmallVector<const clang::DeclContext *, 8> &ContextVec);
     void writeParameters(const clang::FunctionDecl *FunctionDecl);

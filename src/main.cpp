@@ -27,8 +27,8 @@
 
 #include <util/CommandLine.hpp>
 
-#include <FGenAction.hpp>
 #include <FGenCompilationDatabase.hpp>
+#include <FGenAction.hpp>
 #include <FGenVisitor.hpp>
 
 /* clang-format off */
@@ -155,7 +155,7 @@ static llvm::cl::list<std::string> InputFiles(
 
 int main(int argc, const char *argv[])
 {
-    std::unique_ptr<clang::tooling::CompilationDatabase> Database;
+    FGenCompilationDatabase FGenDb;
     std::string ErrMsg;
 
     llvm::cl::HideUnrelatedOptions({&GeneralOptions, &GeneratorOptions});
@@ -176,6 +176,7 @@ int main(int argc, const char *argv[])
      * segmentation fault.
      */
     if (argc <= 1) {
+        /* Show no hidden options, show categorized options */
         llvm::cl::PrintHelpMessage(false, true);
         std::exit(EXIT_FAILURE);
     }
@@ -187,24 +188,18 @@ int main(int argc, const char *argv[])
     }
 
     if (!DatabasePath.empty()) {
-        Database = FGenCompilationDatabase::loadFromFile(DatabasePath, ErrMsg);
-
-        if (!ErrMsg.empty()) {
-            util::cl::error() << "fgen: failed to load provided compilation "
-                              << "database \"" << DatabasePath << "\":\n    "
-                              << ErrMsg << "\n";
+        bool Ok = FGenDb.autoDetect(DatabasePath, ErrMsg);
+        if (!Ok) {
+            util::cl::error() << "fgen: failed to load compilation database \"" 
+                              << DatabasePath << "\" - " << ErrMsg << "\n";
             std::exit(EXIT_FAILURE);
         }
-    }
-
-    if (!Database) {
-        llvm::StringRef File = Files[0];
-
-        Database = FGenCompilationDatabase::autoDetectFromSource(File, ErrMsg);
-
-        if (!Database || !ErrMsg.empty()) {
-            util::cl::error() << "fgen: failed to load compilation database:\n"
-                              << "    " << ErrMsg << "\n";
+    } else {
+        /* Use user provided source file for auto detection */
+        bool Ok = FGenDb.autoDetect(Files[0], ErrMsg);
+        if (!Ok) {
+            util::cl::error() << "fgen: failed to find and load a compilation "
+                              << "database - " << ErrMsg << "\n";
             std::exit(EXIT_FAILURE);
         }
     }
@@ -222,10 +217,11 @@ int main(int argc, const char *argv[])
     Configuration.setImplementStubs(FlagStubs);
     Configuration.setNamespaceDefinitions(FlagNamespaces);
     Configuration.setOutputFile(std::move(OutputFile));
+
     auto &Targets = Configuration.targets();
     Targets.insert(Targets.end(), Begin, End);
 
-    clang::tooling::ClangTool Tool(*Database, Files);
+    clang::tooling::ClangTool Tool(FGenDb.get(), Files);
 
     return Tool.run(&Factory);
 }

@@ -81,5 +81,30 @@ void getFullContext(const clang::NamedDecl *Decl,
     /* Just reverse the part that we added to the vector */
     std::reverse(std::next(std::begin(Vec), OldSize), std::end(Vec));
 }
+
+bool hasReturnType(const clang::FunctionDecl *FunctionDecl)
+{
+    switch (FunctionDecl->getKind()) {
+    case clang::Decl::CXXConstructor:
+    case clang::Decl::CXXDestructor:
+    case clang::Decl::CXXConversion:
+        return false;
+    default:
+        return true;
+    }
+}
+
+bool hasTrailingReturnType(const clang::FunctionDecl *FunctionDecl)
+{
+    if (!hasReturnType(FunctionDecl))
+        return false;
+
+    auto Loc = FunctionDecl->getReturnTypeSourceRange().getBegin();
+    auto ReturnType = FunctionDecl->getReturnType();
+    auto DeclaredReturnType = FunctionDecl->getDeclaredReturnType();
+    
+    return Loc.isInvalid() || ReturnType != DeclaredReturnType;
+}
+
 }
 }

@@ -39,6 +39,10 @@ std::string generateUSR(const clang::Decl *Decl);
 void getFullContext(const clang::NamedDecl *Decl,
                     llvm::SmallVectorImpl<const clang::DeclContext *> &Vec);
 
+bool hasReturnType(const clang::FunctionDecl *FunctionDecl);
+
+bool hasTrailingReturnType(const clang::FunctionDecl *FunctionDecl);
+
 }
 }
 
